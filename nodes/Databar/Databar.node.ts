@@ -19,8 +19,9 @@
  * Resources & Operations:
  * - User: Get account info
  * - Enrichment: Run, Bulk Run (with async polling)
- * - Table: Create, List, Get Rows, Get Columns, Run Enrichment
  * - Waterfall: List, Get, Run
+ * 
+ * Note: Table operations are temporarily hidden but can be re-enabled in the code
  */
 
 import {
@@ -143,10 +144,11 @@ export class Databar implements INodeType {
 						name: 'Enrichment',
 						value: 'enrichment',
 					},
-					{
-						name: 'Table',
-						value: 'table',
-					},
+					// Table resource temporarily hidden - can be re-enabled later
+					// {
+					// 	name: 'Table',
+					// 	value: 'table',
+					// },
 					{
 						name: 'Waterfall',
 						value: 'waterfall',
@@ -439,114 +441,115 @@ export class Databar implements INodeType {
 			// ====================================
 			//        TABLE OPERATIONS
 			// ====================================
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['table'],
-					},
-				},
-				options: [
-					{
-						name: 'Create',
-						value: 'create',
-						description: 'Create a new table',
-						action: 'Create table',
-					},
-					{
-						name: 'List',
-						value: 'list',
-						description: 'Get all workspace tables',
-						action: 'List tables',
-					},
-					{
-						name: 'Get Rows',
-						value: 'getRows',
-						description: 'Get table rows',
-						action: 'Get table rows',
-					},
-					{
-						name: 'Get Columns',
-						value: 'getColumns',
-						description: 'Get table columns',
-						action: 'Get table columns',
-					},
-					{
-						name: 'Run Enrichment',
-						value: 'runEnrichment',
-						description: 'Run table enrichment',
-						action: 'Run table enrichment',
-					},
-				],
-				default: 'list',
-			},
+			// Table operations temporarily hidden - can be re-enabled later
+			// {
+			// 	displayName: 'Operation',
+			// 	name: 'operation',
+			// 	type: 'options',
+			// 	noDataExpression: true,
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['table'],
+			// 		},
+			// 	},
+			// 	options: [
+			// 		{
+			// 			name: 'Create',
+			// 			value: 'create',
+			// 			description: 'Create a new table',
+			// 			action: 'Create table',
+			// 		},
+			// 		{
+			// 			name: 'List',
+			// 			value: 'list',
+			// 			description: 'Get all workspace tables',
+			// 			action: 'List tables',
+			// 		},
+			// 		{
+			// 			name: 'Get Rows',
+			// 			value: 'getRows',
+			// 			description: 'Get table rows',
+			// 			action: 'Get table rows',
+			// 		},
+			// 		{
+			// 			name: 'Get Columns',
+			// 			value: 'getColumns',
+			// 			description: 'Get table columns',
+			// 			action: 'Get table columns',
+			// 		},
+			// 		{
+			// 			name: 'Run Enrichment',
+			// 			value: 'runEnrichment',
+			// 			description: 'Run table enrichment',
+			// 			action: 'Run table enrichment',
+			// 		},
+			// 	],
+			// 	default: 'list',
+			// },
 
 			// Table: Get Rows/Columns/Run - Table Selection
-			{
-				displayName: 'Table',
-				name: 'tableUuid',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getTables',
-					searchable: true,
-				},
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['getRows', 'getColumns', 'runEnrichment'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Select the table to use',
-			},
+			// {
+			// 	displayName: 'Table',
+			// 	name: 'tableUuid',
+			// 	type: 'options',
+			// 	typeOptions: {
+			// 		loadOptionsMethod: 'getTables',
+			// 		searchable: true,
+			// 	},
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['table'],
+			// 			operation: ['getRows', 'getColumns', 'runEnrichment'],
+			// 		},
+			// 	},
+			// 	default: '',
+			// 	required: true,
+			// 	description: 'Select the table to use',
+			// },
 
 			// Table: Get Rows - Pagination
-			{
-				displayName: 'Per Page',
-				name: 'perPage',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['getRows'],
-					},
-				},
-				default: 1000,
-				description: 'Number of items to return per page',
-			},
-			{
-				displayName: 'Page',
-				name: 'page',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['getRows'],
-					},
-				},
-				default: 1,
-				description: 'Page number to retrieve',
-			},
+			// {
+			// 	displayName: 'Per Page',
+			// 	name: 'perPage',
+			// 	type: 'number',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['table'],
+			// 			operation: ['getRows'],
+			// 		},
+			// 	},
+			// 	default: 1000,
+			// 	description: 'Number of items to return per page',
+			// },
+			// {
+			// 	displayName: 'Page',
+			// 	name: 'page',
+			// 	type: 'number',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['table'],
+			// 			operation: ['getRows'],
+			// 		},
+			// 	},
+			// 	default: 1,
+			// 	description: 'Page number to retrieve',
+			// },
 
 			// Table: Run Enrichment - Enrichment ID
-			{
-				displayName: 'Enrichment ID',
-				name: 'tableEnrichmentId',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['runEnrichment'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'The ID of the enrichment to run',
-			},
+			// {
+			// 	displayName: 'Enrichment ID',
+			// 	name: 'tableEnrichmentId',
+			// 	type: 'string',
+			// 	displayOptions: {
+			// 		show: {
+			// 			resource: ['table'],
+			// 			operation: ['runEnrichment'],
+			// 		},
+			// 	},
+			// 	default: '',
+			// 	required: true,
+			// 	description: 'The ID of the enrichment to run',
+			// },
 
 			// ====================================
 			//      WATERFALL OPERATIONS
@@ -794,37 +797,37 @@ export class Databar implements INodeType {
 				return returnData;
 			},
 
-			// Load tables
-			async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const returnData: INodePropertyOptions[] = [];
-				try {
-					const tables = await this.helpers.httpRequestWithAuthentication.call(
-						this,
-						'databarApi',
-						{
-							method: 'GET',
-							url: 'https://api.databar.ai/v1/table/',
-						},
-					);
+			// Load tables - temporarily hidden, can be re-enabled later
+			// async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+			// 	const returnData: INodePropertyOptions[] = [];
+			// 	try {
+			// 		const tables = await this.helpers.httpRequestWithAuthentication.call(
+			// 			this,
+			// 			'databarApi',
+			// 			{
+			// 				method: 'GET',
+			// 				url: 'https://api.databar.ai/v1/table/',
+			// 			},
+			// 		);
 
-					if (Array.isArray(tables)) {
-						for (const table of tables) {
-							const tableData = table as IDataObject;
-							returnData.push({
-								name: tableData.name as string,
-								value: tableData.identifier as string,
-								description: `Created: ${tableData.created_at}`,
-							});
-						}
-					}
+			// 		if (Array.isArray(tables)) {
+			// 			for (const table of tables) {
+			// 				const tableData = table as IDataObject;
+			// 				returnData.push({
+			// 					name: tableData.name as string,
+			// 					value: tableData.identifier as string,
+			// 					description: `Created: ${tableData.created_at}`,
+			// 				});
+			// 			}
+			// 		}
 
-					// Sort by name
-					returnData.sort((a, b) => a.name.localeCompare(b.name));
-				} catch (error) {
-					// Silently fail
-				}
-				return returnData;
-			},
+			// 		// Sort by name
+			// 		returnData.sort((a, b) => a.name.localeCompare(b.name));
+			// 	} catch (error) {
+			// 		// Silently fail
+			// 	}
+			// 	return returnData;
+			// },
 
 			/**
 			 * Get parameter template for selected enrichment
@@ -1188,78 +1191,79 @@ export class Databar implements INodeType {
 				// ====================================
 				//        TABLE OPERATIONS
 				// ====================================
-				else if (resource === 'table') {
-					if (operation === 'create') {
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'POST',
-								url: 'https://api.databar.ai/v1/table/create',
-								body: {},
-							},
-						);
-						returnData.push(response as IDataObject);
-					} else if (operation === 'list') {
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: 'https://api.databar.ai/v1/table/',
-							},
-						);
-						if (Array.isArray(response)) {
-							returnData.push(...(response as IDataObject[]));
-						} else {
-							returnData.push(response as IDataObject);
-						}
-					} else if (operation === 'getRows') {
-						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						const perPage = this.getNodeParameter('perPage', i) as number;
-						const page = this.getNodeParameter('page', i) as number;
-						
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/table/${tableUuid}/rows`,
-								qs: { per_page: perPage, page },
-							},
-						);
-						returnData.push(response as IDataObject);
-					} else if (operation === 'getColumns') {
-						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/table/${tableUuid}/columns`,
-							},
-						);
-						if (Array.isArray(response)) {
-							returnData.push(...(response as IDataObject[]));
-						} else {
-							returnData.push(response as IDataObject);
-						}
-					} else if (operation === 'runEnrichment') {
-						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						const tableEnrichmentId = this.getNodeParameter('tableEnrichmentId', i) as string;
-						
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/table/${tableUuid}/run-enrichment/${tableEnrichmentId}`,
-							},
-						);
-						returnData.push(response as IDataObject);
-					}
-				}
+				// Table operations temporarily hidden - can be re-enabled later
+				// else if (resource === 'table') {
+				// 	if (operation === 'create') {
+				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
+				// 			this,
+				// 			'databarApi',
+				// 			{
+				// 				method: 'POST',
+				// 				url: 'https://api.databar.ai/v1/table/create',
+				// 				body: {},
+				// 			},
+				// 		);
+				// 		returnData.push(response as IDataObject);
+				// 	} else if (operation === 'list') {
+				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
+				// 			this,
+				// 			'databarApi',
+				// 			{
+				// 				method: 'GET',
+				// 				url: 'https://api.databar.ai/v1/table/',
+				// 			},
+				// 		);
+				// 		if (Array.isArray(response)) {
+				// 			returnData.push(...(response as IDataObject[]));
+				// 		} else {
+				// 			returnData.push(response as IDataObject);
+				// 		}
+				// 	} else if (operation === 'getRows') {
+				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
+				// 		const perPage = this.getNodeParameter('perPage', i) as number;
+				// 		const page = this.getNodeParameter('page', i) as number;
+				// 		
+				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
+				// 			this,
+				// 			'databarApi',
+				// 			{
+				// 				method: 'GET',
+				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/rows`,
+				// 				qs: { per_page: perPage, page },
+				// 			},
+				// 		);
+				// 		returnData.push(response as IDataObject);
+				// 	} else if (operation === 'getColumns') {
+				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
+				// 		
+				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
+				// 			this,
+				// 			'databarApi',
+				// 			{
+				// 				method: 'GET',
+				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/columns`,
+				// 			},
+				// 		);
+				// 		if (Array.isArray(response)) {
+				// 			returnData.push(...(response as IDataObject[]));
+				// 		} else {
+				// 			returnData.push(response as IDataObject);
+				// 		}
+				// 	} else if (operation === 'runEnrichment') {
+				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
+				// 		const tableEnrichmentId = this.getNodeParameter('tableEnrichmentId', i) as string;
+				// 		
+				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
+				// 			this,
+				// 			'databarApi',
+				// 			{
+				// 				method: 'GET',
+				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/run-enrichment/${tableEnrichmentId}`,
+				// 			},
+				// 		);
+				// 		returnData.push(response as IDataObject);
+				// 	}
+				// }
 
 				// ====================================
 				//      WATERFALL OPERATIONS
