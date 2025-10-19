@@ -842,7 +842,7 @@ export class Databar implements INodeType {
 				'databarApi',
 				{
 					method: 'GET',
-					url: `/v1/tasks/${taskId}`,
+					url: `https://api.databar.ai/v1/tasks/${taskId}`,
 				},
 			);
 
@@ -936,7 +936,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/enrichments/${enrichmentId}`,
+								url: `https://api.databar.ai/v1/enrichments/${enrichmentId}`,
 							},
 						);
 						returnData.push(response as IDataObject);
@@ -972,7 +972,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: `/v1/enrichments/${enrichmentId}/run`,
+								url: `https://api.databar.ai/v1/enrichments/${enrichmentId}/run`,
 								body: { params },
 							},
 						);
@@ -1022,7 +1022,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: `/v1/enrichments/${enrichmentId}/bulk-run`,
+								url: `https://api.databar.ai/v1/enrichments/${enrichmentId}/bulk-run`,
 								body: { params: paramsArray },
 							},
 						);
@@ -1083,7 +1083,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/table/${tableUuid}/rows`,
+								url: `https://api.databar.ai/v1/table/${tableUuid}/rows`,
 								qs: { per_page: perPage, page },
 							},
 						);
@@ -1096,7 +1096,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/table/${tableUuid}/columns`,
+								url: `https://api.databar.ai/v1/table/${tableUuid}/columns`,
 							},
 						);
 						if (Array.isArray(response)) {
@@ -1112,7 +1112,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/table/${tableUuid}/enrichments`,
+								url: `https://api.databar.ai/v1/table/${tableUuid}/enrichments`,
 							},
 						);
 						if (Array.isArray(response)) {
@@ -1151,7 +1151,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: `/v1/table/${tableUuid}/add-enrichment`,
+								url: `https://api.databar.ai/v1/table/${tableUuid}/add-enrichment`,
 								body: {
 									enrichment: enrichmentId,
 									mapping: mappingObj,
@@ -1168,7 +1168,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/table/${tableUuid}/run-enrichment/${tableEnrichmentId}`,
+								url: `https://api.databar.ai/v1/table/${tableUuid}/run-enrichment/${tableEnrichmentId}`,
 							},
 						);
 						returnData.push(response as IDataObject);
@@ -1200,7 +1200,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/waterfalls/${waterfallIdentifier}`,
+								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
 							},
 						);
 						returnData.push(response as IDataObject);
@@ -1233,7 +1233,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: `/v1/waterfalls/${waterfallIdentifier}/run`,
+								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}/run`,
 								body: { params, enrichments },
 							},
 						);
@@ -1280,7 +1280,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: `/v1/waterfalls/${waterfallIdentifier}/bulk-run`,
+								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}/bulk-run`,
 								body: { params: paramsArray, enrichments },
 							},
 						);
@@ -1313,7 +1313,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: `/v1/tasks/${taskId}`,
+								url: `https://api.databar.ai/v1/tasks/${taskId}`,
 							},
 						);
 						returnData.push(response as IDataObject);
