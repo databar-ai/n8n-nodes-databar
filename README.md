@@ -9,7 +9,7 @@ Databar.ai provides powerful data enrichment capabilities and table management f
 ## ✨ Features
 
 - **🔍 Dynamic Enrichment Discovery**: Search and select from all available enrichments with descriptions, data sources, and credit costs displayed in-app
-- **📋 Automatic Parameter Templates**: Instantly see required parameters for any enrichment with auto-generated JSON templates - no more guessing parameter names or types!
+- **📝 Smart Parameter Input**: Choose between guided individual fields or raw JSON input - the node adapts to your enrichment's requirements automatically
 - **⏱️ Automatic Async Handling**: Built-in polling for async API calls - no need for separate nodes to check task status
 - **📊 Complete API Coverage**: All Databar.ai REST API endpoints are supported
 - **🎯 Type-Safe**: Full TypeScript implementation with proper type validation
@@ -122,41 +122,53 @@ Get people data from email
 ↳ Returns a person's name, location, social media... | Clearbit Companies API · 0.10 Credits
 ```
 
-### 2. Automatic Parameter Templates
+### 2. Smart Parameter Input (Guided Fields)
 
-**NEW!** No more guessing what parameters an enrichment needs!
+**NEW!** Choose how you want to input parameters:
 
-When you select an enrichment to run, the node can automatically:
-- Fetch the enrichment's parameter requirements from the API
-- Display parameter names, types (text, number, etc.), and descriptions
-- Show which parameters are required vs optional
-- Generate a ready-to-use JSON template
+#### **Option 1: Guided Fields (Recommended)**
+The node automatically generates individual input fields for each parameter:
+- Fetches enrichment requirements from the API
+- Creates labeled input fields with proper types (text, number, boolean)
+- Shows descriptions and marks required vs optional fields
+- Type-safe input with validation
+- Perfect for manual data entry and simple workflows
 
-**How to use:**
-1. Select an enrichment from the dropdown
-2. Toggle "Show Parameter Template" (enabled by default)
-3. Click on "Parameter Template" dropdown to see:
-   - List of all parameters with descriptions
-   - JSON template you can copy
-4. Copy the template format into your "Parameters (JSON)" field
-5. Replace placeholder values with your actual data
+#### **Option 2: Raw JSON**
+Traditional JSON object input for power users:
+- Enter parameters as a JSON object
+- Best for complex objects and dynamic expressions
+- Full control over input format
 
-**Example:**
+**Example: Guided Fields Mode**
 ```
-Parameter Template shows:
-• email (text, **REQUIRED**): Email address to enrich
-• first_name (text, optional): Person's first name
-
-JSON Template:
-{
-  "email": "<text>",
-  "first_name": "<text>"
-}
+1. Select enrichment "Get people data from email"
+2. Parameter Input Mode: Guided Fields (default)
+3. The node automatically shows:
+   
+   Email: [______________] (Required)
+   ↳ Email address to enrich (text)
+   
+   First Name: [______________] (Optional)
+   ↳ Person's first name (text)
+   
+4. Fill in the fields directly
+5. Execute!
 ```
 
-This eliminates the need to use "Get Enrichment" operation separately or refer to external documentation!
+**Example: Raw JSON Mode**
+```
+1. Select enrichment
+2. Parameter Input Mode: Raw JSON
+3. Parameters (JSON):
+   {
+     "email": "john@example.com",
+     "first_name": "John"
+   }
+4. Execute!
+```
 
-[See full documentation →](PARAMETER_TEMPLATES.md)
+No more guessing parameter names or types! The fields adapt automatically to whichever enrichment you select.
 
 ### 3. Automatic Async Task Polling
 
@@ -182,7 +194,7 @@ All API calls use absolute URLs (`https://api.databar.ai/v1/...`) to ensure comp
 
 ## Usage Examples
 
-### Example 1: Email Enrichment with Parameter Template
+### Example 1: Email Enrichment with Guided Fields
 
 ```
 1. Add Databar node
@@ -190,12 +202,20 @@ All API calls use absolute URLs (`https://api.databar.ai/v1/...`) to ensure comp
 3. Operation: Run
 4. Enrichment Selection: From List
 5. Search and select "Get people data from email"
-6. Show Parameter Template: ✓ True (default)
-7. Click "Parameter Template" dropdown to see required parameters
-8. Copy template format: {"email": "<text>"}
-9. Parameters (JSON): {"email": "john@example.com"}
-10. Wait for Completion: ✓ True
-11. Execute → Returns enriched data directly!
+6. Parameter Input Mode: Guided Fields (default)
+7. Individual fields auto-appear:
+   - Email: john@example.com
+8. Wait for Completion: ✓ True
+9. Execute → Returns enriched data directly!
+```
+
+**Alternative with Raw JSON:**
+```
+...step 5...
+6. Parameter Input Mode: Raw JSON
+7. Parameters (JSON): {"email": "john@example.com"}
+8. Wait for Completion: ✓ True
+9. Execute → Returns enriched data directly!
 ```
 
 ### Example 2: Bulk Waterfall Enrichment
@@ -279,6 +299,13 @@ n8n-nodes-databar/
 - Options are searchable client-side with `searchable: true`
 - Falls back to manual ID entry if needed
 
+**Resource Mapper (Guided Fields):**
+- `resourceMapperMethod` dynamically generates input fields based on enrichment parameters
+- Fetches parameter definitions from `/v1/enrichments/{id}` endpoint
+- Maps Databar types (text, number, boolean) to n8n field types
+- Displays required/optional status and descriptions
+- Returns structured data in `paramsFields.value` object
+
 **Type Safety:**
 - Full TypeScript with `IExecuteFunctions`, `ILoadOptionsFunctions` contexts
 - Explicit type conversions and validations for all parameters
@@ -312,6 +339,7 @@ The main node (`Databar.node.ts`) is organized as:
 3. **Description**: Node metadata, properties, and UI configuration
 4. **Methods**: 
    - `loadOptions`: Dynamic option loaders for dropdowns
+   - `resourceMapping`: Dynamic field generators for guided input (resourceMapper)
    - `getEnrichmentParams`: Helper to fetch enrichment details
 5. **Execute Function**: Main execution logic with resource/operation routing
 
@@ -381,6 +409,8 @@ For issues or questions:
 ### 0.1.0 (Current)
 - ✅ Initial release with full API coverage
 - ✅ Dynamic enrichment/waterfall/table dropdowns with search
+- ✅ **Guided Fields Mode**: Automatic parameter field generation with resourceMapper
+- ✅ **Dual Input Modes**: Choose between guided fields or raw JSON for parameters
 - ✅ Automatic async task polling with configurable options
 - ✅ Support for all Databar.ai REST API endpoints
 - ✅ Type-safe implementation with proper error handling
