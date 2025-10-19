@@ -1,6 +1,8 @@
 import {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IDataObject,
@@ -147,60 +149,53 @@ export class Databar implements INodeType {
 				description: 'Search enrichments by keyword (minimum 3 characters)',
 			},
 
-			// Enrichment: Get/Run/BulkRun - Enrichment ID
+			// Enrichment: Get/Run/BulkRun - Enrichment Selection
 			{
-				displayName: 'Enrichment ID',
+				displayName: 'Enrichment',
 				name: 'enrichmentId',
-				type: 'number',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getEnrichments',
+				},
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['get', 'run', 'bulkRun'],
 					},
 				},
-				default: 0,
+				default: '',
 				required: true,
-				description: 'The ID of the enrichment',
+				description: 'Select the enrichment to use',
 			},
 
-			// Enrichment: Run - Parameters
+			// Enrichment: Run - Parameter Help Notice
 			{
-				displayName: 'Parameters',
-				name: 'params',
-				placeholder: 'Add Parameter',
-				type: 'fixedCollection',
-				typeOptions: {
-					multipleValues: true,
-				},
+				displayName: 'To see required parameters for this enrichment, select an enrichment above first. Then check the enrichment details in the Databar platform or use "Get Enrichment" operation to see parameter requirements.',
+				name: 'parameterNotice',
+				type: 'notice',
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
 					},
 				},
-				default: {},
-				options: [
-					{
-						name: 'parameter',
-						displayName: 'Parameter',
-						values: [
-							{
-								displayName: 'Key',
-								name: 'key',
-								type: 'string',
-								default: '',
-								description: 'Parameter name',
-							},
-							{
-								displayName: 'Value',
-								name: 'value',
-								type: 'string',
-								default: '',
-								description: 'Parameter value',
-							},
-						],
+				default: '',
+			},
+
+			// Enrichment: Run - Parameters as JSON
+			{
+				displayName: 'Parameters (JSON)',
+				name: 'params',
+				type: 'json',
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run'],
 					},
-				],
+				},
+				default: '{"email": "test@example.com"}',
+				description: 'Parameters for the enrichment as a JSON object. Example: {"email": "test@example.com", "first_name": "John"}',
+				required: true,
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -326,11 +321,14 @@ export class Databar implements INodeType {
 				default: 'list',
 			},
 
-			// Table: Get Rows/Columns/Enrichments/Add/Run - Table UUID
+			// Table: Get Rows/Columns/Enrichments/Add/Run - Table Selection
 			{
-				displayName: 'Table UUID',
+				displayName: 'Table',
 				name: 'tableUuid',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getTables',
+				},
 				displayOptions: {
 					show: {
 						resource: ['table'],
@@ -339,7 +337,7 @@ export class Databar implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The UUID of the table',
+				description: 'Select the table to use',
 			},
 
 			// Table: Get Rows - Pagination
@@ -460,11 +458,14 @@ export class Databar implements INodeType {
 				default: 'list',
 			},
 
-			// Waterfall: Get/Run/BulkRun - Waterfall Identifier
+			// Waterfall: Get/Run/BulkRun - Waterfall Selection
 			{
-				displayName: 'Waterfall Identifier',
+				displayName: 'Waterfall',
 				name: 'waterfallIdentifier',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWaterfalls',
+				},
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
@@ -473,47 +474,37 @@ export class Databar implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The identifier of the waterfall (e.g., "email_getter")',
+				description: 'Select the waterfall to use',
 			},
 
-			// Waterfall: Run - Parameters
+			// Waterfall: Run - Parameter Help Notice
 			{
-				displayName: 'Parameters',
-				name: 'params',
-				placeholder: 'Add Parameter',
-				type: 'fixedCollection',
-				typeOptions: {
-					multipleValues: true,
-				},
+				displayName: 'To see required parameters for this waterfall, check the waterfall details. Use "Get Waterfall" operation to see input parameter requirements.',
+				name: 'parameterNotice',
+				type: 'notice',
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
 						operation: ['run'],
 					},
 				},
-				default: {},
-				options: [
-					{
-						name: 'parameter',
-						displayName: 'Parameter',
-						values: [
-							{
-								displayName: 'Key',
-								name: 'key',
-								type: 'string',
-								default: '',
-								description: 'Parameter name',
-							},
-							{
-								displayName: 'Value',
-								name: 'value',
-								type: 'string',
-								default: '',
-								description: 'Parameter value',
-							},
-						],
+				default: '',
+			},
+
+			// Waterfall: Run - Parameters as JSON
+			{
+				displayName: 'Parameters (JSON)',
+				name: 'params',
+				type: 'json',
+				displayOptions: {
+					show: {
+						resource: ['waterfall'],
+						operation: ['run'],
 					},
-				],
+				},
+				default: '{"first_name": "John", "last_name": "Doe", "company": "example.com"}',
+				description: 'Parameters for the waterfall as a JSON object',
+				required: true,
 			},
 
 			// Waterfall: Run - Enrichments
@@ -651,6 +642,124 @@ export class Databar implements INodeType {
 		],
 	};
 
+	methods = {
+		loadOptions: {
+			// Load available enrichments
+			async getEnrichments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					const enrichments = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: '/v1/enrichments/',
+						},
+					);
+
+					if (Array.isArray(enrichments)) {
+						for (const enrichment of enrichments) {
+							const enrichmentData = enrichment as IDataObject;
+							returnData.push({
+								name: `${enrichmentData.name as string} (ID: ${enrichmentData.id})`,
+								value: enrichmentData.id as number,
+								description: enrichmentData.description as string,
+							});
+						}
+					}
+
+					// Sort by name
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					// If error, return empty array (silently fail)
+				}
+				return returnData;
+			},
+
+			// Load waterfalls
+			async getWaterfalls(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					const waterfalls = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: '/v1/waterfalls/',
+						},
+					);
+
+					if (Array.isArray(waterfalls)) {
+						for (const waterfall of waterfalls) {
+							const waterfallData = waterfall as IDataObject;
+							returnData.push({
+								name: waterfallData.name as string,
+								value: waterfallData.identifier as string,
+								description: waterfallData.description as string,
+							});
+						}
+					}
+
+					// Sort by name
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					// Silently fail
+				}
+				return returnData;
+			},
+
+			// Load tables
+			async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					const tables = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: '/v1/table/',
+						},
+					);
+
+					if (Array.isArray(tables)) {
+						for (const table of tables) {
+							const tableData = table as IDataObject;
+							returnData.push({
+								name: tableData.name as string,
+								value: tableData.identifier as string,
+								description: `Created: ${tableData.created_at}`,
+							});
+						}
+					}
+
+					// Sort by name
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					// Silently fail
+				}
+				return returnData;
+			},
+		},
+
+		// This method gets enrichment parameter info to display to users
+		async getEnrichmentParams(this: IExecuteFunctions | ILoadOptionsFunctions, enrichmentId: number | string) {
+			try {
+				const enrichmentDetails = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'databarApi',
+					{
+						method: 'GET',
+						url: `/v1/enrichments/${enrichmentId}`,
+					},
+				);
+				return enrichmentDetails as IDataObject;
+			} catch (error) {
+				// Silently fail
+				return null;
+			}
+		},
+	};
+
 	// Helper method to poll task status until completion
 	async pollTaskStatus(
 		context: IExecuteFunctions,
@@ -767,15 +876,19 @@ export class Databar implements INodeType {
 						returnData.push(response as IDataObject);
 					} else if (operation === 'run') {
 						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
-						const paramsCollection = this.getNodeParameter('params', i) as IDataObject;
+						const paramsJson = this.getNodeParameter('params', i) as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Convert fixed collection to object
-						const params: IDataObject = {};
-						if (paramsCollection.parameter && Array.isArray(paramsCollection.parameter)) {
-							for (const param of paramsCollection.parameter as Array<{ key: string; value: string }>) {
-								params[param.key] = param.value;
-							}
+						// Parse JSON parameters
+						let params: IDataObject;
+						try {
+							params = JSON.parse(paramsJson);
+						} catch (error) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Parameters must be valid JSON object',
+								{ itemIndex: i },
+							);
 						}
 
 						const response = await this.helpers.httpRequestWithAuthentication.call(
@@ -997,16 +1110,20 @@ export class Databar implements INodeType {
 						returnData.push(response as IDataObject);
 					} else if (operation === 'run') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
-						const paramsCollection = this.getNodeParameter('params', i) as IDataObject;
+						const paramsJson = this.getNodeParameter('params', i) as string;
 						const enrichmentsStr = this.getNodeParameter('enrichments', i) as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Convert fixed collection to object
-						const params: IDataObject = {};
-						if (paramsCollection.parameter && Array.isArray(paramsCollection.parameter)) {
-							for (const param of paramsCollection.parameter as Array<{ key: string; value: string }>) {
-								params[param.key] = param.value;
-							}
+						// Parse JSON parameters
+						let params: IDataObject;
+						try {
+							params = JSON.parse(paramsJson);
+						} catch (error) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Parameters must be valid JSON object',
+								{ itemIndex: i },
+							);
 						}
 
 						// Parse enrichment IDs
