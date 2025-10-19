@@ -9,6 +9,58 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
+// Helper function to poll task status until completion
+async function pollTaskStatus(
+	context: IExecuteFunctions,
+	taskId: string,
+	pollInterval: number,
+	timeout: number,
+): Promise<IDataObject> {
+	const startTime = Date.now();
+	const pollIntervalMs = pollInterval * 1000;
+	const timeoutMs = timeout * 1000;
+
+	while (true) {
+		// Check if we've exceeded the timeout
+		if (Date.now() - startTime > timeoutMs) {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Task ${taskId} timed out after ${timeout} seconds`,
+			);
+		}
+
+		// Check task status
+		const response = await context.helpers.httpRequestWithAuthentication.call(
+			context,
+			'databarApi',
+			{
+				method: 'GET',
+				url: `https://api.databar.ai/v1/tasks/${taskId}`,
+			},
+		);
+
+		const taskData = response as IDataObject;
+		const status = taskData.status as string;
+
+		if (status === 'completed') {
+			return taskData;
+		}
+
+		if (status === 'failed') {
+			const error = taskData.error || 'Task failed without error message';
+			throw new NodeOperationError(
+				context.getNode(),
+				`Task ${taskId} failed: ${error}`,
+			);
+		}
+
+		// Wait before polling again
+		await new Promise<void>((resolve) => {
+			(globalThis as any).setTimeout(resolve, pollIntervalMs);
+		});
+	}
+}
+
 export class Databar implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Databar',
@@ -816,60 +868,6 @@ export class Databar implements INodeType {
 		},
 	};
 
-	// Helper method to poll task status until completion
-	async pollTaskStatus(
-		context: IExecuteFunctions,
-		taskId: string,
-		pollInterval: number,
-		timeout: number,
-	): Promise<IDataObject> {
-		const startTime = Date.now();
-		const pollIntervalMs = pollInterval * 1000;
-		const timeoutMs = timeout * 1000;
-
-		while (true) {
-			// Check if we've exceeded the timeout
-			if (Date.now() - startTime > timeoutMs) {
-				throw new NodeOperationError(
-					context.getNode(),
-					`Task ${taskId} timed out after ${timeout} seconds`,
-				);
-			}
-
-			// Check task status
-			const response = await context.helpers.httpRequestWithAuthentication.call(
-				context,
-				'databarApi',
-				{
-					method: 'GET',
-					url: `https://api.databar.ai/v1/tasks/${taskId}`,
-				},
-			);
-
-			const taskData = response as IDataObject;
-			const status = taskData.status as string;
-
-			// If completed, return the data
-			if (status === 'completed') {
-				return taskData;
-			}
-
-			// If failed, throw an error
-			if (status === 'failed') {
-				const error = taskData.error || 'Task failed without error message';
-				throw new NodeOperationError(
-					context.getNode(),
-					`Task ${taskId} failed: ${error}`,
-				);
-			}
-
-			// Still processing, wait before checking again
-			await new Promise<void>((resolve) => {
-				(globalThis as any).setTimeout(resolve, pollIntervalMs);
-			});
-		}
-	}
-
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: IDataObject[] = [];
@@ -986,7 +984,7 @@ export class Databar implements INodeType {
 							const taskId = taskResponse.task_id as string;
 							
 							// Poll for completion
-							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push(completedTask);
 						} else {
 							returnData.push(taskResponse);
@@ -1036,7 +1034,7 @@ export class Databar implements INodeType {
 							const taskId = taskResponse.task_id as string;
 							
 							// Poll for completion
-							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push(completedTask);
 						} else {
 							returnData.push(taskResponse);
@@ -1247,7 +1245,7 @@ export class Databar implements INodeType {
 							const taskId = taskResponse.task_id as string;
 							
 							// Poll for completion
-							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push(completedTask);
 						} else {
 							returnData.push(taskResponse);
@@ -1294,7 +1292,7 @@ export class Databar implements INodeType {
 							const taskId = taskResponse.task_id as string;
 							
 							// Poll for completion
-							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push(completedTask);
 						} else {
 							returnData.push(taskResponse);
