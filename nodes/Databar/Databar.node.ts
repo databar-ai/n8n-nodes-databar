@@ -183,6 +183,7 @@ export class Databar implements INodeType {
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getEnrichments',
+					searchable: true,  // Enable client-side search
 				},
 				displayOptions: {
 					show: {
@@ -373,6 +374,7 @@ export class Databar implements INodeType {
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getTables',
+					searchable: true,
 				},
 				displayOptions: {
 					show: {
@@ -510,6 +512,7 @@ export class Databar implements INodeType {
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getWaterfalls',
+					searchable: true,
 				},
 				displayOptions: {
 					show: {
@@ -705,10 +708,12 @@ export class Databar implements INodeType {
 					if (Array.isArray(enrichments)) {
 						for (const enrichment of enrichments) {
 							const enrichmentData = enrichment as IDataObject;
+							const dataSource = enrichmentData.data_source as string || 'Unknown';
+							const price = enrichmentData.price as number || 0;
 							returnData.push({
-								name: `${enrichmentData.name as string} (ID: ${enrichmentData.id})`,
+								name: enrichmentData.name as string,
 								value: enrichmentData.id as number,
-								description: enrichmentData.description as string,
+								description: `${enrichmentData.description as string} | ${dataSource} · ${price} Credits`,
 							});
 						}
 					}
