@@ -9,6 +9,7 @@ Databar.ai provides powerful data enrichment capabilities and table management f
 ## ✨ Features
 
 - **🔍 Dynamic Enrichment Discovery**: Search and select from all available enrichments with descriptions, data sources, and credit costs displayed in-app
+- **📋 Automatic Parameter Templates**: Instantly see required parameters for any enrichment with auto-generated JSON templates - no more guessing parameter names or types!
 - **⏱️ Automatic Async Handling**: Built-in polling for async API calls - no need for separate nodes to check task status
 - **📊 Complete API Coverage**: All Databar.ai REST API endpoints are supported
 - **🎯 Type-Safe**: Full TypeScript implementation with proper type validation
@@ -121,7 +122,43 @@ Get people data from email
 ↳ Returns a person's name, location, social media... | Clearbit Companies API · 0.10 Credits
 ```
 
-### 2. Automatic Async Task Polling
+### 2. Automatic Parameter Templates
+
+**NEW!** No more guessing what parameters an enrichment needs!
+
+When you select an enrichment to run, the node can automatically:
+- Fetch the enrichment's parameter requirements from the API
+- Display parameter names, types (text, number, etc.), and descriptions
+- Show which parameters are required vs optional
+- Generate a ready-to-use JSON template
+
+**How to use:**
+1. Select an enrichment from the dropdown
+2. Toggle "Show Parameter Template" (enabled by default)
+3. Click on "Parameter Template" dropdown to see:
+   - List of all parameters with descriptions
+   - JSON template you can copy
+4. Copy the template format into your "Parameters (JSON)" field
+5. Replace placeholder values with your actual data
+
+**Example:**
+```
+Parameter Template shows:
+• email (text, **REQUIRED**): Email address to enrich
+• first_name (text, optional): Person's first name
+
+JSON Template:
+{
+  "email": "<text>",
+  "first_name": "<text>"
+}
+```
+
+This eliminates the need to use "Get Enrichment" operation separately or refer to external documentation!
+
+[See full documentation →](PARAMETER_TEMPLATES.md)
+
+### 3. Automatic Async Task Polling
 
 Databar's enrichment and waterfall operations are asynchronous. This node handles the complexity for you:
 
@@ -145,7 +182,7 @@ All API calls use absolute URLs (`https://api.databar.ai/v1/...`) to ensure comp
 
 ## Usage Examples
 
-### Example 1: Email Enrichment with Auto-Polling
+### Example 1: Email Enrichment with Parameter Template
 
 ```
 1. Add Databar node
@@ -153,9 +190,12 @@ All API calls use absolute URLs (`https://api.databar.ai/v1/...`) to ensure comp
 3. Operation: Run
 4. Enrichment Selection: From List
 5. Search and select "Get people data from email"
-6. Parameters (JSON): {"email": "john@example.com"}
-7. Wait for Completion: ✓ True
-8. Execute → Returns enriched data directly!
+6. Show Parameter Template: ✓ True (default)
+7. Click "Parameter Template" dropdown to see required parameters
+8. Copy template format: {"email": "<text>"}
+9. Parameters (JSON): {"email": "john@example.com"}
+10. Wait for Completion: ✓ True
+11. Execute → Returns enriched data directly!
 ```
 
 ### Example 2: Bulk Waterfall Enrichment
