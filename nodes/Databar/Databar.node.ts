@@ -364,6 +364,26 @@ export class Databar implements INodeType {
 				description: 'Fill in the enrichment parameters',
 			},
 
+			// Enrichment: Run - Template Helper for JSON Mode (Hidden field that loads template)
+			{
+				displayName: 'Template',
+				name: 'jsonTemplateHelper',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getEnrichmentTemplate',
+					loadOptionsDependsOn: ['enrichmentId'],
+				},
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run'],
+						parameterMode: ['json'],
+					},
+				},
+				default: '{}',
+				description: 'Click to see the parameter template, then copy it into the field below',
+			},
+
 			// Enrichment: Run - Parameters as JSON (Raw JSON)
 			{
 				displayName: 'Parameters (JSON)',
@@ -376,9 +396,10 @@ export class Databar implements INodeType {
 						parameterMode: ['json'],
 					},
 				},
-				default: '{}',
+				default: '={{ $parameter["jsonTemplateHelper"] }}',
 				placeholder: '{"email": "test@example.com"}',
-				description: 'Enter enrichment parameters as a JSON object',
+				hint: '✨ Auto-filled from template above! Replace <text> placeholders with your actual data.',
+				description: 'Parameters automatically populated from template. Replace placeholders with real values.',
 				required: true,
 			},
 
