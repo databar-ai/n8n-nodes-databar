@@ -219,6 +219,53 @@ export class Databar implements INodeType {
 				required: true,
 			},
 
+			// Enrichment: Run/BulkRun - Wait for Completion
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run', 'bulkRun'],
+					},
+				},
+				default: true,
+				description: 'Whether to wait for the enrichment to complete and return results automatically',
+			},
+
+			// Enrichment: Additional Options
+			{
+				displayName: 'Additional Options',
+				name: 'additionalOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run', 'bulkRun'],
+						waitForCompletion: [true],
+					},
+				},
+				options: [
+					{
+						displayName: 'Poll Interval (seconds)',
+						name: 'pollInterval',
+						type: 'number',
+						default: 3,
+						description: 'How often to check for completion (in seconds)',
+					},
+					{
+						displayName: 'Timeout (seconds)',
+						name: 'timeout',
+						type: 'number',
+						default: 300,
+						description: 'Maximum time to wait for completion (in seconds)',
+					},
+				],
+			},
+
 			// ====================================
 			//        TABLE OPERATIONS
 			// ====================================
@@ -515,6 +562,53 @@ export class Databar implements INodeType {
 				description: 'Comma-separated list of enrichment IDs to use (e.g., "833,966"). Default is 833.',
 			},
 
+			// Waterfall: Run/BulkRun - Wait for Completion
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['waterfall'],
+						operation: ['run', 'bulkRun'],
+					},
+				},
+				default: true,
+				description: 'Whether to wait for the waterfall to complete and return results automatically',
+			},
+
+			// Waterfall: Additional Options
+			{
+				displayName: 'Additional Options',
+				name: 'additionalOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['waterfall'],
+						operation: ['run', 'bulkRun'],
+						waitForCompletion: [true],
+					},
+				},
+				options: [
+					{
+						displayName: 'Poll Interval (seconds)',
+						name: 'pollInterval',
+						type: 'number',
+						default: 3,
+						description: 'How often to check for completion (in seconds)',
+					},
+					{
+						displayName: 'Timeout (seconds)',
+						name: 'timeout',
+						type: 'number',
+						default: 300,
+						description: 'Maximum time to wait for completion (in seconds)',
+					},
+				],
+			},
+
 			// ====================================
 			//        TASK OPERATIONS
 			// ====================================
@@ -556,6 +650,60 @@ export class Databar implements INodeType {
 			},
 		],
 	};
+
+	// Helper method to poll task status until completion
+	async pollTaskStatus(
+		context: IExecuteFunctions,
+		taskId: string,
+		pollInterval: number,
+		timeout: number,
+	): Promise<IDataObject> {
+		const startTime = Date.now();
+		const pollIntervalMs = pollInterval * 1000;
+		const timeoutMs = timeout * 1000;
+
+		while (true) {
+			// Check if we've exceeded the timeout
+			if (Date.now() - startTime > timeoutMs) {
+				throw new NodeOperationError(
+					context.getNode(),
+					`Task ${taskId} timed out after ${timeout} seconds`,
+				);
+			}
+
+			// Check task status
+			const response = await context.helpers.httpRequestWithAuthentication.call(
+				context,
+				'databarApi',
+				{
+					method: 'GET',
+					url: `/v1/tasks/${taskId}`,
+				},
+			);
+
+			const taskData = response as IDataObject;
+			const status = taskData.status as string;
+
+			// If completed, return the data
+			if (status === 'completed') {
+				return taskData;
+			}
+
+			// If failed, throw an error
+			if (status === 'failed') {
+				const error = taskData.error || 'Task failed without error message';
+				throw new NodeOperationError(
+					context.getNode(),
+					`Task ${taskId} failed: ${error}`,
+				);
+			}
+
+			// Still processing, wait before checking again
+			await new Promise<void>((resolve) => {
+				(globalThis as any).setTimeout(resolve, pollIntervalMs);
+			});
+		}
+	}
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
@@ -620,6 +768,7 @@ export class Databar implements INodeType {
 					} else if (operation === 'run') {
 						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
 						const paramsCollection = this.getNodeParameter('params', i) as IDataObject;
+						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
 						// Convert fixed collection to object
 						const params: IDataObject = {};
@@ -638,10 +787,25 @@ export class Databar implements INodeType {
 								body: { params },
 							},
 						);
-						returnData.push(response as IDataObject);
+
+						const taskResponse = response as IDataObject;
+						
+						if (waitForCompletion) {
+							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
+							const pollInterval = (additionalOptions.pollInterval as number) || 3;
+							const timeout = (additionalOptions.timeout as number) || 300;
+							const taskId = taskResponse.task_id as string;
+							
+							// Poll for completion
+							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							returnData.push(completedTask);
+						} else {
+							returnData.push(taskResponse);
+						}
 					} else if (operation === 'bulkRun') {
 						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
 						const bulkParams = this.getNodeParameter('bulkParams', i) as string;
+						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
 						let paramsArray;
 						try {
@@ -663,7 +827,21 @@ export class Databar implements INodeType {
 								body: { params: paramsArray },
 							},
 						);
-						returnData.push(response as IDataObject);
+
+						const taskResponse = response as IDataObject;
+						
+						if (waitForCompletion) {
+							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
+							const pollInterval = (additionalOptions.pollInterval as number) || 3;
+							const timeout = (additionalOptions.timeout as number) || 300;
+							const taskId = taskResponse.task_id as string;
+							
+							// Poll for completion
+							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							returnData.push(completedTask);
+						} else {
+							returnData.push(taskResponse);
+						}
 					}
 				}
 
@@ -821,6 +999,7 @@ export class Databar implements INodeType {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
 						const paramsCollection = this.getNodeParameter('params', i) as IDataObject;
 						const enrichmentsStr = this.getNodeParameter('enrichments', i) as string;
+						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
 						// Convert fixed collection to object
 						const params: IDataObject = {};
@@ -845,11 +1024,26 @@ export class Databar implements INodeType {
 								body: { params, enrichments },
 							},
 						);
-						returnData.push(response as IDataObject);
+
+						const taskResponse = response as IDataObject;
+						
+						if (waitForCompletion) {
+							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
+							const pollInterval = (additionalOptions.pollInterval as number) || 3;
+							const timeout = (additionalOptions.timeout as number) || 300;
+							const taskId = taskResponse.task_id as string;
+							
+							// Poll for completion
+							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							returnData.push(completedTask);
+						} else {
+							returnData.push(taskResponse);
+						}
 					} else if (operation === 'bulkRun') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
 						const bulkParams = this.getNodeParameter('bulkParams', i) as string;
 						const enrichmentsStr = this.getNodeParameter('enrichments', i) as string;
+						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
 						let paramsArray;
 						try {
@@ -877,7 +1071,21 @@ export class Databar implements INodeType {
 								body: { params: paramsArray, enrichments },
 							},
 						);
-						returnData.push(response as IDataObject);
+
+						const taskResponse = response as IDataObject;
+						
+						if (waitForCompletion) {
+							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
+							const pollInterval = (additionalOptions.pollInterval as number) || 3;
+							const timeout = (additionalOptions.timeout as number) || 300;
+							const taskId = taskResponse.task_id as string;
+							
+							// Poll for completion
+							const completedTask = await (this as any).pollTaskStatus(this, taskId, pollInterval, timeout);
+							returnData.push(completedTask);
+						} else {
+							returnData.push(taskResponse);
+						}
 					}
 				}
 
@@ -900,7 +1108,8 @@ export class Databar implements INodeType {
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
-					returnData.push({ error: error.message });
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					returnData.push({ error: errorMessage });
 					continue;
 				}
 				throw error;
