@@ -304,38 +304,23 @@ export class Databar implements INodeType {
 				description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
 			},
 
-			// Enrichment: Run - Auto-fetch Template Toggle
+			// Enrichment: Run - Parameter Template Display
 			{
-				displayName: 'Show Parameter Template',
-				name: 'showTemplate',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-					},
-				},
-				default: true,
-				description: 'Fetch and display the parameter template for the selected enrichment',
-			},
-
-			// Enrichment: Run - Parameter Template (fetched dynamically)
-			{
-				displayName: 'Parameter Template',
-				name: 'enrichmentTemplate',
+				displayName: 'Template',
+				name: 'templateHelper',
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getEnrichmentTemplate',
+					loadOptionsDependsOn: ['enrichmentId'],  // Reload when enrichment changes
 				},
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
-						showTemplate: [true],
 					},
 				},
-				default: '',
-				description: 'Required parameters for this enrichment (for reference only - copy the format below)',
+				default: 'loading',
+				description: 'Parameter template for the selected enrichment. Copy the JSON from the description and paste it into the Parameters field below.',
 			},
 
 			// Enrichment: Run - Parameters as JSON
@@ -349,44 +334,30 @@ export class Databar implements INodeType {
 						operation: ['run'],
 					},
 				},
-				default: '{}',
-				placeholder: '{"param_name": "value"}',
-				description: 'Enter the enrichment parameters as JSON. Format: {"param_name": "value"}. See parameter template above for required fields.',
+				default: '={{ $parameter["templateHelper"] }}',
+				placeholder: '{"email": "test@example.com"}',
+				hint: '✨ Template auto-filled! Replace the placeholder values (e.g., <text>) with your actual data.',
+				description: 'Parameters are automatically populated from the template above. Replace placeholder values like "<text>" with your actual data.',
 				required: true,
 			},
 
-			// Enrichment: Bulk Run - Show Template Toggle
+			// Enrichment: Bulk Run - Parameter Template Display
 			{
-				displayName: 'Show Parameter Template',
-				name: 'showTemplateBulk',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['bulkRun'],
-					},
-				},
-				default: true,
-				description: 'Fetch and display the parameter template for the selected enrichment',
-			},
-
-			// Enrichment: Bulk Run - Parameter Template
-			{
-				displayName: 'Parameter Template',
-				name: 'enrichmentTemplateBulk',
+				displayName: 'Template',
+				name: 'templateHelperBulk',
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getEnrichmentTemplate',
+					loadOptionsDependsOn: ['enrichmentId'],  // Reload when enrichment changes
 				},
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['bulkRun'],
-						showTemplateBulk: [true],
 					},
 				},
-				default: '',
-				description: 'Required parameters for this enrichment (for reference - use this format as an array below)',
+				default: 'loading',
+				description: 'Parameter template for the selected enrichment. Each item in your array should follow this structure.',
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -400,9 +371,10 @@ export class Databar implements INodeType {
 						operation: ['bulkRun'],
 					},
 				},
-				default: '[{"param_name": "value1"}, {"param_name": "value2"}]',
+				default: '=[{{ $parameter["templateHelperBulk"] }}]',
 				placeholder: '[{"email": "john@example.com"}, {"email": "jane@example.com"}]',
-				description: 'Array of parameter objects for bulk enrichment. Each object should match the template format above.',
+				hint: '✨ First template auto-filled! Copy it for each record and replace placeholder values (e.g., <text>) with your actual data.',
+				description: 'Array of parameter objects for bulk enrichment. First item is pre-filled from template - copy and modify for additional records.',
 				required: true,
 			},
 
@@ -963,17 +935,27 @@ export class Databar implements INodeType {
 			 * required and optional parameters with their types and descriptions.
 			 */
 			async getEnrichmentTemplate(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-				const enrichmentId = this.getCurrentNodeParameter('enrichmentId') as number;
-				
-				if (!enrichmentId) {
-					return [{
-						name: 'Select an enrichment first',
-						value: 'none',
-						description: 'Choose an enrichment from the dropdown above to see its parameter template',
-					}];
-				}
-
 				try {
+					// Get enrichment ID - could be from list or manual entry
+					let enrichmentId: number | undefined;
+					
+					try {
+						const enrichmentIdRaw = this.getCurrentNodeParameter('enrichmentId');
+						if (enrichmentIdRaw) {
+							enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw as number;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+					
+					if (!enrichmentId || isNaN(enrichmentId)) {
+						return [{
+							name: '👆 Select an enrichment above first',
+							value: 'loading',
+							description: 'Choose an enrichment from the dropdown above to see its parameter template here.',
+						}];
+					}
+
 					// Fetch enrichment details
 					const enrichment = await this.helpers.httpRequestWithAuthentication.call(
 						this,
@@ -989,9 +971,9 @@ export class Databar implements INodeType {
 
 					if (params.length === 0) {
 						return [{
-							name: 'No parameters required',
+							name: '✅ No parameters required',
 							value: 'none',
-							description: 'This enrichment does not require any parameters',
+							description: 'This enrichment does not require any parameters. You can leave the Parameters field empty.',
 						}];
 					}
 
@@ -1009,8 +991,8 @@ export class Databar implements INodeType {
 						template[paramName] = `<${typeField}>`;
 						
 						// Add to description list
-						const requiredLabel = isRequired ? '**REQUIRED**' : 'optional';
-						paramDescriptions.push(`• ${paramName} (${typeField}, ${requiredLabel}): ${description}`);
+						const requiredLabel = isRequired ? '🔴 REQUIRED' : '⚪ optional';
+						paramDescriptions.push(`${requiredLabel} • ${paramName} (${typeField}): ${description}`);
 					}
 
 					// Format as readable JSON
@@ -1018,16 +1000,17 @@ export class Databar implements INodeType {
 					const paramList = paramDescriptions.join('\n');
 
 					return [{
-						name: 'Copy this template ⬇',
+						name: '📋 Copy this template',
 						value: templateJson,
-						description: `Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
+						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template (copy this):\n${templateJson}`,
 					}];
 
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
-						name: 'Error fetching parameters',
+						name: '⚠️ Error loading template',
 						value: 'error',
-						description: 'Could not fetch enrichment parameters. Make sure the enrichment ID is valid and you have proper API access.',
+						description: `Could not fetch enrichment parameters. Error: ${errorMessage}\n\nTry:\n• Verify the enrichment ID is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
 					}];
 				}
 			},
