@@ -17,11 +17,10 @@
  * - Dynamic dropdowns populated via loadOptionsMethod functions
  * 
  * Resources & Operations:
- * - User: Get user info
- * - Enrichment: List, Get, Run, Bulk Run (with async polling)
- * - Table: Create, List, Get Rows, Get Columns, Get Enrichments, Add Enrichment, Run Enrichment
- * - Waterfall: List, Get, Run, Bulk Run (with async polling)
- * - Task: Get Status (for checking async task results)
+ * - User: Get account info
+ * - Enrichment: Run, Bulk Run (with async polling)
+ * - Table: Create, List, Get Rows, Get Columns, Run Enrichment
+ * - Waterfall: List, Get, Run
  */
 
 import {
@@ -152,10 +151,6 @@ export class Databar implements INodeType {
 						name: 'Waterfall',
 						value: 'waterfall',
 					},
-					{
-						name: 'Task',
-						value: 'task',
-					},
 				],
 				default: 'enrichment',
 			},
@@ -175,10 +170,10 @@ export class Databar implements INodeType {
 				},
 				options: [
 					{
-						name: 'Get User Info',
+						name: 'Get Account Info',
 						value: 'getMe',
 						description: 'Get information about your current account',
-						action: 'Get user info',
+						action: 'Get account info',
 					},
 				],
 				default: 'getMe',
@@ -480,18 +475,6 @@ export class Databar implements INodeType {
 						action: 'Get table columns',
 					},
 					{
-						name: 'Get Enrichments',
-						value: 'getEnrichments',
-						description: 'Get table enrichments',
-						action: 'Get table enrichments',
-					},
-					{
-						name: 'Add Enrichment',
-						value: 'addEnrichment',
-						description: 'Add enrichment to table',
-						action: 'Add enrichment to table',
-					},
-					{
 						name: 'Run Enrichment',
 						value: 'runEnrichment',
 						description: 'Run table enrichment',
@@ -501,7 +484,7 @@ export class Databar implements INodeType {
 				default: 'list',
 			},
 
-			// Table: Get Rows/Columns/Enrichments/Add/Run - Table Selection
+			// Table: Get Rows/Columns/Run - Table Selection
 			{
 				displayName: 'Table',
 				name: 'tableUuid',
@@ -513,7 +496,7 @@ export class Databar implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['table'],
-						operation: ['getRows', 'getColumns', 'getEnrichments', 'addEnrichment', 'runEnrichment'],
+						operation: ['getRows', 'getColumns', 'runEnrichment'],
 					},
 				},
 				default: '',
@@ -547,38 +530,6 @@ export class Databar implements INodeType {
 				},
 				default: 1,
 				description: 'Page number to retrieve',
-			},
-
-			// Table: Add Enrichment - Enrichment ID
-			{
-				displayName: 'Enrichment ID',
-				name: 'enrichmentId',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['addEnrichment'],
-					},
-				},
-				default: 0,
-				required: true,
-				description: 'The ID of the enrichment to add',
-			},
-
-			// Table: Add Enrichment - Mapping
-			{
-				displayName: 'Mapping',
-				name: 'mapping',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['addEnrichment'],
-					},
-				},
-				default: '{"param1": {"value": "column1", "type": "mapping"}}',
-				description: 'Mapping configuration for the enrichment',
-				required: true,
 			},
 
 			// Table: Run Enrichment - Enrichment ID
@@ -629,17 +580,18 @@ export class Databar implements INodeType {
 						description: 'Run a waterfall task',
 						action: 'Run waterfall',
 					},
-					{
-						name: 'Bulk Run',
-						value: 'bulkRun',
-						description: 'Run waterfall on multiple records',
-						action: 'Bulk run waterfall',
-					},
+					// Bulk Run temporarily removed - can be re-added later if needed
+					// {
+					// 	name: 'Bulk Run',
+					// 	value: 'bulkRun',
+					// 	description: 'Run waterfall on multiple records',
+					// 	action: 'Bulk run waterfall',
+					// },
 				],
 				default: 'list',
 			},
 
-			// Waterfall: Get/Run/BulkRun - Waterfall Selection
+			// Waterfall: Get/Run - Waterfall Selection
 			{
 				displayName: 'Waterfall',
 				name: 'waterfallIdentifier',
@@ -651,7 +603,7 @@ export class Databar implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
-						operation: ['get', 'run', 'bulkRun'],
+						operation: ['get', 'run'],
 					},
 				},
 				default: '',
@@ -704,38 +656,7 @@ export class Databar implements INodeType {
 				description: 'Comma-separated list of enrichment IDs to use (e.g., "833,966"). Default is 833.',
 			},
 
-			// Waterfall: Bulk Run - Parameters JSON
-			{
-				displayName: 'Parameters (Array of Objects)',
-				name: 'bulkParams',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['bulkRun'],
-					},
-				},
-				default: '[{"param1": "value1"}, {"param1": "value2"}]',
-				description: 'Array of parameter objects for bulk waterfall',
-				required: true,
-			},
-
-			// Waterfall: Bulk Run - Enrichments
-			{
-				displayName: 'Enrichment IDs',
-				name: 'enrichments',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['bulkRun'],
-					},
-				},
-				default: '833',
-				description: 'Comma-separated list of enrichment IDs to use (e.g., "833,966"). Default is 833.',
-			},
-
-			// Waterfall: Run/BulkRun - Wait for Completion
+			// Waterfall: Run - Wait for Completion
 			{
 				displayName: 'Wait for Completion',
 				name: 'waitForCompletion',
@@ -743,7 +664,7 @@ export class Databar implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
-						operation: ['run', 'bulkRun'],
+						operation: ['run'],
 					},
 				},
 				default: true,
@@ -760,7 +681,7 @@ export class Databar implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
-						operation: ['run', 'bulkRun'],
+						operation: ['run'],
 						waitForCompletion: [true],
 					},
 				},
@@ -782,45 +703,6 @@ export class Databar implements INodeType {
 				],
 			},
 
-			// ====================================
-			//        TASK OPERATIONS
-			// ====================================
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['task'],
-					},
-				},
-				options: [
-					{
-						name: 'Get Status',
-						value: 'getStatus',
-						description: 'Get task status and data',
-						action: 'Get task status',
-					},
-				],
-				default: 'getStatus',
-			},
-
-			// Task: Get Status - Request ID
-			{
-				displayName: 'Task ID',
-				name: 'taskId',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['task'],
-						operation: ['getStatus'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'The task/request ID to check',
-			},
 		],
 	};
 
@@ -1363,61 +1245,6 @@ export class Databar implements INodeType {
 						} else {
 							returnData.push(response as IDataObject);
 						}
-					} else if (operation === 'getEnrichments') {
-						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/table/${tableUuid}/enrichments`,
-							},
-						);
-						if (Array.isArray(response)) {
-							returnData.push(...(response as IDataObject[]));
-						} else {
-							returnData.push(response as IDataObject);
-						}
-					} else if (operation === 'addEnrichment') {
-						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
-						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
-						
-						if (!enrichmentId || isNaN(enrichmentId as number)) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Please provide a valid enrichment ID',
-								{ itemIndex: i },
-							);
-						}
-						
-						const mapping = this.getNodeParameter('mapping', i) as string;
-						
-						let mappingObj;
-						try {
-							mappingObj = JSON.parse(mapping);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Mapping must be valid JSON object',
-								{ itemIndex: i },
-							);
-						}
-
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'POST',
-								url: `https://api.databar.ai/v1/table/${tableUuid}/add-enrichment`,
-								body: {
-									enrichment: enrichmentId,
-									mapping: mappingObj,
-								},
-							},
-						);
-						returnData.push(response as IDataObject);
 					} else if (operation === 'runEnrichment') {
 						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
 						const tableEnrichmentId = this.getNodeParameter('tableEnrichmentId', i) as string;
@@ -1511,71 +1338,6 @@ export class Databar implements INodeType {
 						} else {
 							returnData.push(taskResponse);
 						}
-					} else if (operation === 'bulkRun') {
-						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
-						const bulkParams = this.getNodeParameter('bulkParams', i) as string;
-						const enrichmentsStr = this.getNodeParameter('enrichments', i) as string;
-						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
-						
-						let paramsArray;
-						try {
-							paramsArray = JSON.parse(bulkParams);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Bulk parameters must be valid JSON array',
-								{ itemIndex: i },
-							);
-						}
-
-						// Parse enrichment IDs
-						const enrichments = enrichmentsStr
-							.split(',')
-							.map((id) => parseInt(id.trim(), 10))
-							.filter((id) => !isNaN(id));
-
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'POST',
-								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}/bulk-run`,
-								body: { params: paramsArray, enrichments },
-							},
-						);
-
-						const taskResponse = response as IDataObject;
-						
-						if (waitForCompletion) {
-							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
-							const pollInterval = (additionalOptions.pollInterval as number) || 3;
-							const timeout = (additionalOptions.timeout as number) || 300;
-							const taskId = taskResponse.task_id as string;
-							
-							// Poll for completion
-							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
-							returnData.push(completedTask);
-						} else {
-							returnData.push(taskResponse);
-						}
-					}
-				}
-
-				// ====================================
-				//        TASK OPERATIONS
-				// ====================================
-				else if (resource === 'task') {
-					if (operation === 'getStatus') {
-						const taskId = this.getNodeParameter('taskId', i) as string;
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/tasks/${taskId}`,
-							},
-						);
-						returnData.push(response as IDataObject);
 					}
 				}
 			} catch (error) {
