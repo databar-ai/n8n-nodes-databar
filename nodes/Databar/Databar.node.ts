@@ -701,7 +701,7 @@ export class Databar implements INodeType {
 						'databarApi',
 						{
 							method: 'GET',
-							url: '/v1/enrichments/',
+							url: 'https://api.databar.ai/v1/enrichments/',
 						},
 					);
 
@@ -741,7 +741,7 @@ export class Databar implements INodeType {
 						'databarApi',
 						{
 							method: 'GET',
-							url: '/v1/waterfalls/',
+							url: 'https://api.databar.ai/v1/waterfalls/',
 						},
 					);
 
@@ -773,7 +773,7 @@ export class Databar implements INodeType {
 						'databarApi',
 						{
 							method: 'GET',
-							url: '/v1/table/',
+							url: 'https://api.databar.ai/v1/table/',
 						},
 					);
 
@@ -805,7 +805,7 @@ export class Databar implements INodeType {
 					'databarApi',
 					{
 						method: 'GET',
-						url: `/v1/enrichments/${enrichmentId}`,
+						url: `https://api.databar.ai/v1/enrichments/${enrichmentId}`,
 					},
 				);
 				return enrichmentDetails as IDataObject;
@@ -888,7 +888,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: '/v1/user/me',
+								url: 'https://api.databar.ai/v1/user/me',
 							},
 						);
 						returnData.push(response as IDataObject);
@@ -910,7 +910,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: '/v1/enrichments/',
+								url: 'https://api.databar.ai/v1/enrichments/',
 								qs,
 							},
 						);
@@ -1054,7 +1054,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'POST',
-								url: '/v1/table/create',
+								url: 'https://api.databar.ai/v1/table/create',
 								body: {},
 							},
 						);
@@ -1065,7 +1065,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: '/v1/table/',
+								url: 'https://api.databar.ai/v1/table/',
 							},
 						);
 						if (Array.isArray(response)) {
@@ -1185,7 +1185,7 @@ export class Databar implements INodeType {
 							'databarApi',
 							{
 								method: 'GET',
-								url: '/v1/waterfalls/',
+								url: 'https://api.databar.ai/v1/waterfalls/',
 							},
 						);
 						if (Array.isArray(response)) {
