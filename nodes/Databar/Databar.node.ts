@@ -319,7 +319,7 @@ export class Databar implements INodeType {
 						operation: ['run'],
 					},
 				},
-				default: 'loading',
+				default: '{}',
 				required: false,
 				description: 'Parameter template for the selected enrichment. Template will auto-fill the Parameters field below.',
 			},
@@ -357,7 +357,7 @@ export class Databar implements INodeType {
 						operation: ['bulkRun'],
 					},
 				},
-				default: 'loading',
+				default: '{}',
 				required: false,
 				description: 'Parameter template for the selected enrichment. Template will auto-fill the first object in Parameters field below.',
 			},
@@ -953,7 +953,7 @@ export class Databar implements INodeType {
 					if (!enrichmentId || isNaN(enrichmentId)) {
 						return [{
 							name: '👆 Select an enrichment above first',
-							value: 'loading',
+							value: '{}',
 							description: 'Choose an enrichment from the dropdown above to see its parameter template here.',
 						}];
 					}
@@ -974,7 +974,7 @@ export class Databar implements INodeType {
 					if (params.length === 0) {
 						return [{
 							name: '✅ No parameters required',
-							value: 'none',
+							value: '{}',
 							description: 'This enrichment does not require any parameters. You can leave the Parameters field empty.',
 						}];
 					}
@@ -1012,7 +1012,7 @@ export class Databar implements INodeType {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
 						name: '⚠️ Error loading template',
-						value: 'error',
+						value: '{}',
 						description: `Could not fetch enrichment parameters. Error: ${errorMessage}\n\nTry:\n• Verify the enrichment ID is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
 					}];
 				}
