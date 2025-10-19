@@ -920,7 +920,17 @@ export class Databar implements INodeType {
 							returnData.push(response as IDataObject);
 						}
 					} else if (operation === 'get') {
-						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
+						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
+						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
+						
+						if (!enrichmentId || isNaN(enrichmentId as number)) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a valid enrichment ID',
+								{ itemIndex: i },
+							);
+						}
+						
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,
 							'databarApi',
@@ -931,7 +941,17 @@ export class Databar implements INodeType {
 						);
 						returnData.push(response as IDataObject);
 					} else if (operation === 'run') {
-						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
+						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
+						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
+						
+						if (!enrichmentId || isNaN(enrichmentId as number)) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a valid enrichment ID',
+								{ itemIndex: i },
+							);
+						}
+						
 						const paramsJson = this.getNodeParameter('params', i) as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
@@ -972,7 +992,17 @@ export class Databar implements INodeType {
 							returnData.push(taskResponse);
 						}
 					} else if (operation === 'bulkRun') {
-						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
+						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
+						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
+						
+						if (!enrichmentId || isNaN(enrichmentId as number)) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a valid enrichment ID',
+								{ itemIndex: i },
+							);
+						}
+						
 						const bulkParams = this.getNodeParameter('bulkParams', i) as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
@@ -1092,7 +1122,17 @@ export class Databar implements INodeType {
 						}
 					} else if (operation === 'addEnrichment') {
 						const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-						const enrichmentId = this.getNodeParameter('enrichmentId', i) as number;
+						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
+						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
+						
+						if (!enrichmentId || isNaN(enrichmentId as number)) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a valid enrichment ID',
+								{ itemIndex: i },
+							);
+						}
+						
 						const mapping = this.getNodeParameter('mapping', i) as string;
 						
 						let mappingObj;
