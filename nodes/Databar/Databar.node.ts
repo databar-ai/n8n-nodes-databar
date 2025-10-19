@@ -320,7 +320,8 @@ export class Databar implements INodeType {
 					},
 				},
 				default: 'loading',
-				description: 'Parameter template for the selected enrichment. Copy the JSON from the description and paste it into the Parameters field below.',
+				required: false,
+				description: 'Parameter template for the selected enrichment. Template will auto-fill the Parameters field below.',
 			},
 
 			// Enrichment: Run - Parameters as JSON
@@ -334,10 +335,10 @@ export class Databar implements INodeType {
 						operation: ['run'],
 					},
 				},
-				default: '{}',
+				default: '={{ $parameter["templateHelper"] }}',
 				placeholder: '{"email": "test@example.com"}',
-				hint: 'Copy the JSON template from the Template dropdown above and paste it here, then replace placeholder values.',
-				description: 'Enter enrichment parameters as JSON. Click the Template dropdown above to see the required parameter structure.',
+				hint: '✨ Auto-filled from template! Replace placeholder values like <text> with your actual data.',
+				description: 'Parameters automatically populated from template. Replace <text> placeholders with real values.',
 				required: true,
 			},
 
@@ -357,7 +358,8 @@ export class Databar implements INodeType {
 					},
 				},
 				default: 'loading',
-				description: 'Parameter template for the selected enrichment. Each item in your array should follow this structure.',
+				required: false,
+				description: 'Parameter template for the selected enrichment. Template will auto-fill the first object in Parameters field below.',
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -371,10 +373,10 @@ export class Databar implements INodeType {
 						operation: ['bulkRun'],
 					},
 				},
-				default: '[{}]',
+				default: '=[{{ $parameter["templateHelperBulk"] }}]',
 				placeholder: '[{"email": "john@example.com"}, {"email": "jane@example.com"}]',
-				hint: 'Copy the template from the Template dropdown above, then use it for each object in your array.',
-				description: 'Array of parameter objects for bulk enrichment. Click Template above to see the required structure for each object.',
+				hint: '✨ Auto-filled from template! Copy the first object for additional records and replace <text> with actual data.',
+				description: 'First parameter object auto-filled from template. Duplicate for multiple records.',
 				required: true,
 			},
 
@@ -997,12 +999,13 @@ export class Databar implements INodeType {
 
 					// Format as readable JSON
 					const templateJson = JSON.stringify(template, null, 2);
+					const singleLineJson = JSON.stringify(template);  // Single line for expression
 					const paramList = paramDescriptions.join('\n');
 
 					return [{
-						name: '📋 Copy this template',
-						value: templateJson,
-						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template (copy this):\n${templateJson}`,
+						name: '📋 Template loaded',
+						value: singleLineJson,  // Valid JSON string without newlines
+						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template:\n${templateJson}`,
 					}];
 
 				} catch (error) {
