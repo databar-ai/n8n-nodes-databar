@@ -33,6 +33,8 @@ import {
 	INodeTypeDescription,
 	IDataObject,
 	NodeOperationError,
+	ResourceMapperFields,
+	ResourceMapperField,
 } from 'n8n-workflow';
 
 /**
@@ -304,120 +306,80 @@ export class Databar implements INodeType {
 				description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
 			},
 
-			// Enrichment: Run - Show Template Info
+			// Enrichment: Run - Parameter Input Mode
 			{
-				displayName: 'Need to see required parameters? Click below to view the template, then copy it into the Parameters field.',
-				name: 'templateNotice',
-				type: 'notice',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-					},
-				},
-				default: '',
-			},
-
-			// Enrichment: Run - View Template Button
-			{
-				displayName: 'View Parameter Template',
-				name: 'viewTemplate',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-					},
-				},
-				default: false,
-				description: 'Show the parameter template for this enrichment',
-			},
-
-			// Enrichment: Run - Template Display
-			{
-				displayName: 'Template',
-				name: 'templateHelper',
+				displayName: 'Parameter Input Mode',
+				name: 'parameterMode',
 				type: 'options',
+				options: [
+					{
+						name: 'Guided Fields',
+						value: 'fields',
+						description: 'Fill in parameters using individual fields',
+					},
+					{
+						name: 'Raw JSON',
+						value: 'json',
+						description: 'Enter parameters as JSON object',
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run'],
+					},
+				},
+				default: 'fields',
+				description: 'Choose how to input enrichment parameters',
+			},
+
+			// Enrichment: Run - Parameters as Resource Mapper (Guided Fields)
+			{
+				displayName: 'Parameters',
+				name: 'paramsFields',
+				type: 'resourceMapper',
+				noDataExpression: true,
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
 				typeOptions: {
-					loadOptionsMethod: 'getEnrichmentTemplate',
 					loadOptionsDependsOn: ['enrichmentId'],
+					resourceMapper: {
+						resourceMapperMethod: 'getEnrichmentFields',
+						mode: 'add',
+						valuesLabel: 'Parameters',
+						addAllFields: true,
+						multiKeyMatch: false,
+					},
 				},
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
-						viewTemplate: [true],
+						parameterMode: ['fields'],
 					},
 				},
-				default: '{}',
-				description: 'Copy the JSON template from the description below and paste it into the Parameters field',
+				description: 'Fill in the enrichment parameters',
 			},
 
-			// Enrichment: Run - Parameters as JSON
+			// Enrichment: Run - Parameters as JSON (Raw JSON)
 			{
 				displayName: 'Parameters (JSON)',
-				name: 'params',
+				name: 'paramsJson',
 				type: 'json',
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
+						parameterMode: ['json'],
 					},
 				},
 				default: '{}',
 				placeholder: '{"email": "test@example.com"}',
-				hint: 'Enter enrichment parameters as JSON. Toggle "View Parameter Template" above to see required parameters, or leave empty to auto-fetch template on execution.',
-				description: 'Enrichment parameters. If left empty ({}), the template will be automatically fetched and you can fill it during execution.',
-				required: false,
-			},
-
-			// Enrichment: Bulk Run - Template Notice
-			{
-				displayName: 'Need to see required parameters? Toggle "View Template" below to see the parameter structure.',
-				name: 'templateNoticeBulk',
-				type: 'notice',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['bulkRun'],
-					},
-				},
-				default: '',
-			},
-
-			// Enrichment: Bulk Run - View Template Toggle
-			{
-				displayName: 'View Parameter Template',
-				name: 'viewTemplateBulk',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['bulkRun'],
-					},
-				},
-				default: false,
-				description: 'Show the parameter template for this enrichment',
-			},
-
-			// Enrichment: Bulk Run - Template Display
-			{
-				displayName: 'Template',
-				name: 'templateHelperBulk',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getEnrichmentTemplate',
-					loadOptionsDependsOn: ['enrichmentId'],
-				},
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['bulkRun'],
-						viewTemplateBulk: [true],
-					},
-				},
-				default: '{}',
-				description: 'Copy the template structure and use it for each object in your array',
+				description: 'Enter enrichment parameters as a JSON object',
+				required: true,
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -433,8 +395,8 @@ export class Databar implements INodeType {
 				},
 				default: '[{}]',
 				placeholder: '[{"email": "john@example.com"}, {"email": "jane@example.com"}]',
-				hint: 'Array of parameter objects. Toggle "View Template" above to see the required structure for each object.',
-				description: 'Array of enrichment parameters. Each object should follow the template structure.',
+				hint: 'Array of parameter objects. Each object should have the same structure as the single enrichment run.',
+				description: 'Array of enrichment parameters for bulk processing.',
 				required: true,
 			},
 
@@ -1077,6 +1039,93 @@ export class Databar implements INodeType {
 			},
 		},
 
+		resourceMapping: {
+			/**
+			 * Get enrichment fields for resource mapper
+			 * 
+			 * Fetches enrichment details and returns field definitions for the resource mapper.
+			 * This allows users to fill in parameters using individual input fields.
+			 */
+			async getEnrichmentFields(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
+				try {
+					// Get enrichment ID
+					let enrichmentId: number | undefined;
+					
+					try {
+						const enrichmentIdRaw = this.getCurrentNodeParameter('enrichmentId');
+						if (enrichmentIdRaw) {
+							enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw as number;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+					
+					if (!enrichmentId || isNaN(enrichmentId)) {
+						// Return empty fields if no enrichment selected
+						return {
+							fields: [],
+						};
+					}
+
+					// Fetch enrichment details
+					const enrichment = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/enrichments/${enrichmentId}`,
+						},
+					);
+
+					const enrichmentData = enrichment as IDataObject;
+					const params = (enrichmentData.params as IDataObject[]) || [];
+
+					if (params.length === 0) {
+						return {
+							fields: [],
+						};
+					}
+
+					// Build field definitions for resource mapper
+					const fields: ResourceMapperField[] = params.map((param) => {
+						const paramName = param.name as string;
+						const isRequired = param.is_required as boolean;
+						const typeField = param.type_field as string;
+						const description = param.description as string || 'No description';
+						
+						// Map Databar types to n8n resource mapper types
+						let fieldType: 'string' | 'number' | 'boolean' | 'time' | 'object' | 'options' | 'array' = 'string';
+						if (typeField === 'number' || typeField === 'integer') {
+							fieldType = 'number';
+						} else if (typeField === 'boolean') {
+							fieldType = 'boolean';
+						}
+
+						return {
+							id: paramName,
+							displayName: paramName.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+							required: isRequired,
+							defaultMatch: false,
+							display: true,
+							type: fieldType,
+							canBeUsedToMatch: false,
+							description: `${description} (${typeField})`,
+						};
+					});
+
+					return {
+						fields,
+					};
+
+				} catch (error) {
+					// Return empty fields on error
+					return {
+						fields: [],
+					};
+				}
+			},
+		},
+
 		// This method gets enrichment parameter info to display to users
 		async getEnrichmentParams(this: IExecuteFunctions | ILoadOptionsFunctions, enrichmentId: number | string) {
 			try {
@@ -1200,19 +1249,28 @@ export class Databar implements INodeType {
 							);
 						}
 						
-						const paramsJson = this.getNodeParameter('params', i) as string;
+						const parameterMode = this.getNodeParameter('parameterMode', i, 'fields') as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Parse JSON parameters
+						// Get parameters based on input mode
 						let params: IDataObject;
-						try {
-							params = JSON.parse(paramsJson);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Parameters must be valid JSON object',
-								{ itemIndex: i },
-							);
+						if (parameterMode === 'fields') {
+							// Resource mapper mode - get structured fields
+							const paramsFields = this.getNodeParameter('paramsFields', i) as IDataObject;
+							// Resource mapper returns an object with 'value' containing the actual data
+							params = (paramsFields.value as IDataObject) || {};
+						} else {
+							// Raw JSON mode - parse JSON string
+							const paramsJson = this.getNodeParameter('paramsJson', i) as string;
+							try {
+								params = JSON.parse(paramsJson);
+							} catch (error) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Parameters must be valid JSON object',
+									{ itemIndex: i },
+								);
+							}
 						}
 
 						const response = await this.helpers.httpRequestWithAuthentication.call(
