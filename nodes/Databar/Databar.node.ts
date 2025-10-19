@@ -149,7 +149,34 @@ export class Databar implements INodeType {
 				description: 'Search enrichments by keyword (minimum 3 characters)',
 			},
 
-			// Enrichment: Get/Run/BulkRun - Enrichment Selection
+			// Enrichment: Selection Mode
+			{
+				displayName: 'Enrichment Selection',
+				name: 'enrichmentSelectionMode',
+				type: 'options',
+				options: [
+					{
+						name: 'From List',
+						value: 'list',
+						description: 'Select from available enrichments',
+					},
+					{
+						name: 'By ID',
+						value: 'id',
+						description: 'Enter enrichment ID manually',
+					},
+				],
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['get', 'run', 'bulkRun'],
+					},
+				},
+				default: 'list',
+				description: 'How to select the enrichment',
+			},
+
+			// Enrichment: Get/Run/BulkRun - Enrichment Selection from List
 			{
 				displayName: 'Enrichment',
 				name: 'enrichmentId',
@@ -161,11 +188,29 @@ export class Databar implements INodeType {
 					show: {
 						resource: ['enrichment'],
 						operation: ['get', 'run', 'bulkRun'],
+						enrichmentSelectionMode: ['list'],
 					},
 				},
 				default: '',
 				required: true,
-				description: 'Select the enrichment to use',
+				description: 'Select the enrichment to use. If this dropdown is empty, switch to "By ID" mode above.',
+			},
+
+			// Enrichment: Get/Run/BulkRun - Enrichment ID Manual Entry
+			{
+				displayName: 'Enrichment ID',
+				name: 'enrichmentId',
+				type: 'number',
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['get', 'run', 'bulkRun'],
+						enrichmentSelectionMode: ['id'],
+					},
+				},
+				default: 0,
+				required: true,
+				description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
 			},
 
 			// Enrichment: Run - Parameter Help Notice
@@ -671,7 +716,13 @@ export class Databar implements INodeType {
 					// Sort by name
 					returnData.sort((a, b) => a.name.localeCompare(b.name));
 				} catch (error) {
-					// If error, return empty array (silently fail)
+					// Return error as an option so user knows what went wrong
+					const errorMessage = error instanceof Error ? error.message : 'Failed to load enrichments';
+					returnData.push({
+						name: `⚠️ Error: ${errorMessage}`,
+						value: '',
+						description: 'Switch to "By ID" mode to enter enrichment ID manually',
+					});
 				}
 				return returnData;
 			},
