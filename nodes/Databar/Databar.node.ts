@@ -196,52 +196,25 @@ export class Databar implements INodeType {
 					show: {
 						resource: ['enrichment'],
 					},
-				},
-				options: [
-					{
-						name: 'List',
-						value: 'list',
-						description: 'Get all available enrichments',
-						action: 'List enrichments',
-					},
-					{
-						name: 'Get',
-						value: 'get',
-						description: 'Get details of a specific enrichment',
-						action: 'Get enrichment',
-					},
-					{
-						name: 'Run',
-						value: 'run',
-						description: 'Run an enrichment task',
-						action: 'Run enrichment',
-					},
-					{
-						name: 'Bulk Run',
-						value: 'bulkRun',
-						description: 'Run enrichment on multiple records',
-						action: 'Bulk run enrichment',
-					},
-				],
-				default: 'list',
 			},
-
-			// Enrichment: List - Search query
-			{
-				displayName: 'Search Query',
-				name: 'searchQuery',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['list'],
-					},
+			options: [
+				{
+					name: 'Run',
+					value: 'run',
+					description: 'Run an enrichment task',
+					action: 'Run enrichment',
 				},
-				default: '',
-				description: 'Search enrichments by keyword (minimum 3 characters)',
-			},
+				{
+					name: 'Bulk Run',
+					value: 'bulkRun',
+					description: 'Run enrichment on multiple records',
+					action: 'Bulk run enrichment',
+				},
+			],
+			default: 'run',
+		},
 
-			// Enrichment: Selection Mode
+		// Enrichment: Selection Mode
 			{
 				displayName: 'Enrichment Selection',
 				name: 'enrichmentSelectionMode',
@@ -261,50 +234,50 @@ export class Databar implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
-						operation: ['get', 'run', 'bulkRun'],
+						operation: ['run', 'bulkRun'],
 					},
 				},
 				default: 'list',
 				description: 'How to select the enrichment',
 			},
 
-			// Enrichment: Get/Run/BulkRun - Enrichment Selection from List
-			{
-				displayName: 'Enrichment',
-				name: 'enrichmentId',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getEnrichments',
-					searchable: true,  // Enable client-side search
-				},
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['get', 'run', 'bulkRun'],
-						enrichmentSelectionMode: ['list'],
-					},
-				},
-				default: '',
-				required: true,
-				description: 'Select the enrichment to use. If this dropdown is empty, switch to "By ID" mode above.',
+		// Enrichment: Run/BulkRun - Enrichment Selection from List
+		{
+			displayName: 'Enrichment',
+			name: 'enrichmentId',
+			type: 'options',
+			typeOptions: {
+				loadOptionsMethod: 'getEnrichments',
+				searchable: true,  // Enable client-side search
 			},
+			displayOptions: {
+				show: {
+					resource: ['enrichment'],
+					operation: ['run', 'bulkRun'],
+					enrichmentSelectionMode: ['list'],
+				},
+			},
+			default: '',
+			required: true,
+			description: 'Select the enrichment to use. If this dropdown is empty, switch to "By ID" mode above.',
+		},
 
-			// Enrichment: Get/Run/BulkRun - Enrichment ID Manual Entry
-			{
-				displayName: 'Enrichment ID',
-				name: 'enrichmentId',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['get', 'run', 'bulkRun'],
-						enrichmentSelectionMode: ['id'],
-					},
+		// Enrichment: Run/BulkRun - Enrichment ID Manual Entry
+		{
+			displayName: 'Enrichment ID',
+			name: 'enrichmentId',
+			type: 'number',
+			displayOptions: {
+				show: {
+					resource: ['enrichment'],
+					operation: ['run', 'bulkRun'],
+					enrichmentSelectionMode: ['id'],
 				},
-				default: 0,
-				required: true,
-				description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
 			},
+			default: 0,
+			required: true,
+			description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
+		},
 
 			// Enrichment: Run - Parameter Input Mode
 			{
@@ -1217,48 +1190,7 @@ export class Databar implements INodeType {
 				//      ENRICHMENT OPERATIONS
 				// ====================================
 				else if (resource === 'enrichment') {
-					if (operation === 'list') {
-						const searchQuery = this.getNodeParameter('searchQuery', i) as string;
-						const qs: IDataObject = {};
-						if (searchQuery) {
-							qs.q = searchQuery;
-						}
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: 'https://api.databar.ai/v1/enrichments/',
-								qs,
-							},
-						);
-						if (Array.isArray(response)) {
-							returnData.push(...(response as IDataObject[]));
-						} else {
-							returnData.push(response as IDataObject);
-						}
-					} else if (operation === 'get') {
-						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
-						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
-						
-						if (!enrichmentId || isNaN(enrichmentId as number)) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Please provide a valid enrichment ID',
-								{ itemIndex: i },
-							);
-						}
-						
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/enrichments/${enrichmentId}`,
-							},
-						);
-						returnData.push(response as IDataObject);
-					} else if (operation === 'run') {
+					if (operation === 'run') {
 						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
 						const enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw;
 						
