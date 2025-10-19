@@ -1,3 +1,29 @@
+/**
+ * Databar.ai n8n Community Node
+ * 
+ * This node provides integration with the Databar.ai REST API for data enrichment
+ * and table management operations.
+ * 
+ * Key Features:
+ * - Dynamic enrichment/waterfall/table selection with search functionality
+ * - Automatic async task polling with configurable intervals and timeouts
+ * - Full type safety with proper error handling
+ * - Complete API coverage for all Databar.ai endpoints
+ * 
+ * Architecture:
+ * - Uses absolute URLs (https://api.databar.ai/v1/...) for all API calls
+ * - Credentials passed via x-apikey header (defined in DatabarApi.credentials.ts)
+ * - Async operations (enrichments, waterfalls) return task_id and optionally poll for completion
+ * - Dynamic dropdowns populated via loadOptionsMethod functions
+ * 
+ * Resources & Operations:
+ * - User: Get user info
+ * - Enrichment: List, Get, Run, Bulk Run (with async polling)
+ * - Table: Create, List, Get Rows, Get Columns, Get Enrichments, Add Enrichment, Run Enrichment
+ * - Waterfall: List, Get, Run, Bulk Run (with async polling)
+ * - Task: Get Status (for checking async task results)
+ */
+
 import {
 	IExecuteFunctions,
 	ILoadOptionsFunctions,
@@ -9,7 +35,19 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-// Helper function to poll task status until completion
+/**
+ * Helper function to poll task status until completion
+ * 
+ * This function handles the asynchronous nature of Databar enrichment and waterfall operations.
+ * It polls the /v1/tasks/{taskId} endpoint at regular intervals until the task completes or fails.
+ * 
+ * @param context - n8n execution context for making HTTP requests
+ * @param taskId - The task ID returned from enrichment/waterfall run operations
+ * @param pollInterval - Seconds between status checks (default: 5)
+ * @param timeout - Maximum seconds to wait before timing out (default: 300)
+ * @returns The completed task data with results
+ * @throws NodeOperationError if task fails or times out
+ */
 async function pollTaskStatus(
 	context: IExecuteFunctions,
 	taskId: string,
@@ -742,9 +780,23 @@ export class Databar implements INodeType {
 		],
 	};
 
+	/**
+	 * Methods for loading dynamic options in the UI
+	 * 
+	 * These functions are called by n8n to populate dropdown selections.
+	 * They fetch data from the Databar API and format it for display.
+	 */
 	methods = {
 		loadOptions: {
-			// Load available enrichments
+			/**
+			 * Load available enrichments from Databar API
+			 * 
+			 * Fetches all enrichments and formats them for display in dropdown.
+			 * Each option shows: name, description, data source, and credit cost.
+			 * The dropdown is searchable client-side.
+			 * 
+			 * @returns Array of enrichment options with name, value (id), and description
+			 */
 			async getEnrichments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				try {
@@ -868,6 +920,28 @@ export class Databar implements INodeType {
 		},
 	};
 
+	/**
+	 * Main execution function
+	 * 
+	 * This function is called when the node is executed in a workflow.
+	 * It processes each input item and performs the requested operation.
+	 * 
+	 * Structure:
+	 * 1. Get resource (user, enrichment, table, waterfall, task) and operation
+	 * 2. Loop through input items
+	 * 3. Extract parameters and validate
+	 * 4. Make API request with proper authentication
+	 * 5. Handle async operations with optional polling
+	 * 6. Return formatted results
+	 * 
+	 * Key Implementation Details:
+	 * - All URLs are absolute (https://api.databar.ai/v1/...)
+	 * - Enrichment/Waterfall IDs are validated and converted to proper types
+	 * - Async operations return task_id or poll for completion based on user preference
+	 * - Errors are caught and wrapped in NodeOperationError with helpful messages
+	 * 
+	 * @returns Array of execution data to pass to next node
+	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: IDataObject[] = [];

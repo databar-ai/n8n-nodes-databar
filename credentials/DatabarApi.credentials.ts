@@ -1,3 +1,17 @@
+/**
+ * Databar.ai API Credentials
+ * 
+ * This credential type handles authentication for the Databar.ai REST API.
+ * 
+ * Authentication Method:
+ * - Uses API Key authentication via x-apikey header
+ * - API Key can be obtained from Databar workspace > Integrations
+ * 
+ * Testing:
+ * - Credentials are tested by calling /v1/user/me endpoint
+ * - Successful response indicates valid API key
+ */
+
 import {
 	IAuthenticateGeneric,
 	ICredentialTestRequest,
