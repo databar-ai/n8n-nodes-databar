@@ -304,24 +304,53 @@ export class Databar implements INodeType {
 				description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
 			},
 
-			// Enrichment: Run - Parameter Template Display
+			// Enrichment: Run - Show Template Info
 			{
-				displayName: 'Template',
-				name: 'templateHelper',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getEnrichmentTemplate',
-					loadOptionsDependsOn: ['enrichmentId'],  // Reload when enrichment changes
-				},
+				displayName: 'Need to see required parameters? Click below to view the template, then copy it into the Parameters field.',
+				name: 'templateNotice',
+				type: 'notice',
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
 					},
 				},
+				default: '',
+			},
+
+			// Enrichment: Run - View Template Button
+			{
+				displayName: 'View Parameter Template',
+				name: 'viewTemplate',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run'],
+					},
+				},
+				default: false,
+				description: 'Show the parameter template for this enrichment',
+			},
+
+			// Enrichment: Run - Template Display
+			{
+				displayName: 'Template',
+				name: 'templateHelper',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getEnrichmentTemplate',
+					loadOptionsDependsOn: ['enrichmentId'],
+				},
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['run'],
+						viewTemplate: [true],
+					},
+				},
 				default: '{}',
-				required: false,
-				description: 'Parameter template for the selected enrichment. Template will auto-fill the Parameters field below.',
+				description: 'Copy the JSON template from the description below and paste it into the Parameters field',
 			},
 
 			// Enrichment: Run - Parameters as JSON
@@ -335,31 +364,60 @@ export class Databar implements INodeType {
 						operation: ['run'],
 					},
 				},
-				default: '={{ $parameter["templateHelper"] }}',
+				default: '{}',
 				placeholder: '{"email": "test@example.com"}',
-				hint: '✨ Auto-filled from template! Replace placeholder values like <text> with your actual data.',
-				description: 'Parameters automatically populated from template. Replace <text> placeholders with real values.',
-				required: true,
+				hint: 'Enter enrichment parameters as JSON. Toggle "View Parameter Template" above to see required parameters, or leave empty to auto-fetch template on execution.',
+				description: 'Enrichment parameters. If left empty ({}), the template will be automatically fetched and you can fill it during execution.',
+				required: false,
 			},
 
-			// Enrichment: Bulk Run - Parameter Template Display
+			// Enrichment: Bulk Run - Template Notice
 			{
-				displayName: 'Template',
-				name: 'templateHelperBulk',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getEnrichmentTemplate',
-					loadOptionsDependsOn: ['enrichmentId'],  // Reload when enrichment changes
-				},
+				displayName: 'Need to see required parameters? Toggle "View Template" below to see the parameter structure.',
+				name: 'templateNoticeBulk',
+				type: 'notice',
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['bulkRun'],
 					},
 				},
+				default: '',
+			},
+
+			// Enrichment: Bulk Run - View Template Toggle
+			{
+				displayName: 'View Parameter Template',
+				name: 'viewTemplateBulk',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['bulkRun'],
+					},
+				},
+				default: false,
+				description: 'Show the parameter template for this enrichment',
+			},
+
+			// Enrichment: Bulk Run - Template Display
+			{
+				displayName: 'Template',
+				name: 'templateHelperBulk',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getEnrichmentTemplate',
+					loadOptionsDependsOn: ['enrichmentId'],
+				},
+				displayOptions: {
+					show: {
+						resource: ['enrichment'],
+						operation: ['bulkRun'],
+						viewTemplateBulk: [true],
+					},
+				},
 				default: '{}',
-				required: false,
-				description: 'Parameter template for the selected enrichment. Template will auto-fill the first object in Parameters field below.',
+				description: 'Copy the template structure and use it for each object in your array',
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -373,10 +431,10 @@ export class Databar implements INodeType {
 						operation: ['bulkRun'],
 					},
 				},
-				default: '=[{{ $parameter["templateHelperBulk"] }}]',
+				default: '[{}]',
 				placeholder: '[{"email": "john@example.com"}, {"email": "jane@example.com"}]',
-				hint: '✨ Auto-filled from template! Copy the first object for additional records and replace <text> with actual data.',
-				description: 'First parameter object auto-filled from template. Duplicate for multiple records.',
+				hint: 'Array of parameter objects. Toggle "View Template" above to see the required structure for each object.',
+				description: 'Array of enrichment parameters. Each object should follow the template structure.',
 				required: true,
 			},
 
