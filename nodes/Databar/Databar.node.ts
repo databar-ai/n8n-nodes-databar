@@ -94,10 +94,10 @@ async function pollTaskStatus(
 			);
 		}
 
-		// Wait before polling again
-		await new Promise<void>((resolve) => {
-			(globalThis as any).setTimeout(resolve, pollIntervalMs);
-		});
+	// Wait before polling again
+	await new Promise<void>((resolve) => {
+		setTimeout(resolve, pollIntervalMs);
+	});
 	}
 }
 
@@ -137,12 +137,12 @@ export class Databar implements INodeType {
 				noDataExpression: true,
 				options: [
 					{
-						name: 'User',
-						value: 'user',
-					},
-					{
 						name: 'Enrichment',
 						value: 'enrichment',
+					},
+					{
+						name: 'Waterfall',
+						value: 'waterfall',
 					},
 					// Table resource temporarily hidden - can be re-enabled later
 					// {
@@ -150,8 +150,8 @@ export class Databar implements INodeType {
 					// 	value: 'table',
 					// },
 					{
-						name: 'Waterfall',
-						value: 'waterfall',
+						name: 'Other',
+						value: 'user',
 					},
 				],
 				default: 'enrichment',
@@ -422,14 +422,14 @@ export class Databar implements INodeType {
 				},
 				options: [
 					{
-						displayName: 'Poll Interval (seconds)',
+						displayName: 'Poll Interval (Seconds)',
 						name: 'pollInterval',
 						type: 'number',
 						default: 3,
 						description: 'How often to check for completion (in seconds)',
 					},
 					{
-						displayName: 'Timeout (seconds)',
+						displayName: 'Timeout (Seconds)',
 						name: 'timeout',
 						type: 'number',
 						default: 300,
@@ -614,21 +614,85 @@ export class Databar implements INodeType {
 				description: 'Select the waterfall to use',
 			},
 
-			// Waterfall: Run - Parameter Help Notice
+			// Waterfall: Run - Parameter Input Mode
 			{
-				displayName: 'To see required parameters for this waterfall, check the waterfall details. Use "Get Waterfall" operation to see input parameter requirements.',
-				name: 'parameterNotice',
-				type: 'notice',
+				displayName: 'Parameter Input Mode',
+				name: 'waterfallParameterMode',
+				type: 'options',
+				options: [
+					{
+						name: 'Guided Fields',
+						value: 'fields',
+						description: 'Fill in parameters using individual fields',
+					},
+					{
+						name: 'Raw JSON',
+						value: 'json',
+						description: 'Enter parameters as JSON object',
+					},
+				],
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
 						operation: ['run'],
 					},
 				},
-				default: '',
+				default: 'fields',
+				description: 'Choose how to input waterfall parameters',
 			},
 
-			// Waterfall: Run - Parameters as JSON
+			// Waterfall: Run - Parameters as Resource Mapper (Guided Fields)
+			{
+				displayName: 'Parameters',
+				name: 'waterfallParamsFields',
+				type: 'resourceMapper',
+				noDataExpression: true,
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
+				typeOptions: {
+					loadOptionsDependsOn: ['waterfallIdentifier'],
+					resourceMapper: {
+						resourceMapperMethod: 'getWaterfallFields',
+						mode: 'add',
+						valuesLabel: 'Parameters',
+						addAllFields: true,
+						multiKeyMatch: false,
+					},
+				},
+				displayOptions: {
+					show: {
+						resource: ['waterfall'],
+						operation: ['run'],
+						waterfallParameterMode: ['fields'],
+					},
+				},
+				description: 'Fill in the waterfall parameters',
+			},
+
+			// Waterfall: Run - Template Helper for JSON Mode
+			{
+				displayName: 'Template',
+				name: 'waterfallJsonTemplateHelper',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getWaterfallTemplate',
+					loadOptionsDependsOn: ['waterfallIdentifier'],
+				},
+				displayOptions: {
+					show: {
+						resource: ['waterfall'],
+						operation: ['run'],
+						waterfallParameterMode: ['json'],
+					},
+				},
+				default: '{}',
+				description: 'Click to see the parameter template, then copy it into the field below',
+			},
+
+			// Waterfall: Run - Parameters as JSON (Raw JSON)
 			{
 				displayName: 'Parameters (JSON)',
 				name: 'params',
@@ -637,26 +701,33 @@ export class Databar implements INodeType {
 					show: {
 						resource: ['waterfall'],
 						operation: ['run'],
+						waterfallParameterMode: ['json'],
 					},
 				},
-				default: '{"first_name": "John", "last_name": "Doe", "company": "example.com"}',
-				description: 'Parameters for the waterfall as a JSON object',
+				default: '={{ $parameter["waterfallJsonTemplateHelper"] }}',
+				placeholder: '{"first_name": "John", "last_name": "Doe", "company": "example.com"}',
+				hint: '✨ Auto-filled from template above! Replace <text> placeholders with your actual data.',
+				description: 'Parameters automatically populated from template. Replace placeholders with real values.',
 				required: true,
 			},
 
-			// Waterfall: Run - Enrichments
+			// Waterfall: Run - Enrichments (Multi-select)
 			{
-				displayName: 'Enrichment IDs',
+				displayName: 'Data Providers',
 				name: 'enrichments',
-				type: 'string',
+				type: 'multiOptions',
+				typeOptions: {
+					loadOptionsMethod: 'getWaterfallEnrichments',
+					loadOptionsDependsOn: ['waterfallIdentifier'],
+				},
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
 						operation: ['run'],
 					},
 				},
-				default: '833',
-				description: 'Comma-separated list of enrichment IDs to use (e.g., "833,966"). Default is 833.',
+				default: [],
+				description: 'Select which data providers to use in the waterfall. The waterfall will try each provider in order until a successful result is returned.',
 			},
 
 			// Waterfall: Run - Wait for Completion
@@ -690,14 +761,14 @@ export class Databar implements INodeType {
 				},
 				options: [
 					{
-						displayName: 'Poll Interval (seconds)',
+						displayName: 'Poll Interval (Seconds)',
 						name: 'pollInterval',
 						type: 'number',
 						default: 3,
 						description: 'How often to check for completion (in seconds)',
 					},
 					{
-						displayName: 'Timeout (seconds)',
+						displayName: 'Timeout (Seconds)',
 						name: 'timeout',
 						type: 'number',
 						default: 300,
@@ -797,6 +868,78 @@ export class Databar implements INodeType {
 				return returnData;
 			},
 
+			// Load waterfall enrichments (data providers for a specific waterfall)
+			async getWaterfallEnrichments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					// Get waterfall identifier
+					let waterfallIdentifier: string | undefined;
+					
+					try {
+						const waterfallIdRaw = this.getCurrentNodeParameter('waterfallIdentifier');
+						if (waterfallIdRaw) {
+							waterfallIdentifier = waterfallIdRaw as string;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+					
+					if (!waterfallIdentifier) {
+						return [{
+							name: '👆 Select a Waterfall Above First',
+							value: '',
+							description: 'Choose a waterfall from the dropdown above to see available data providers.',
+						}];
+					}
+
+					// Fetch waterfall details
+					const waterfall = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
+						},
+					);
+
+					const waterfallData = waterfall as IDataObject;
+					const availableEnrichments = (waterfallData.available_enrichments as IDataObject[]) || [];
+
+					if (availableEnrichments.length === 0) {
+						return [{
+							name: '⚠️ No Data Providers Available',
+							value: '',
+							description: 'This waterfall has no available data providers configured.',
+						}];
+					}
+
+					// Build options from available enrichments
+					for (const enrichment of availableEnrichments) {
+						const id = enrichment.id as number;
+						const name = enrichment.name as string;
+						const description = enrichment.description as string || 'No description';
+						const price = enrichment.price as string || '0';
+						
+						returnData.push({
+							name: name,
+							value: id,
+							description: `${description} · ${price} Credits`,
+						});
+					}
+
+					// Sort by name
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					return [{
+						name: '⚠️ Error Loading Data Providers',
+						value: '',
+						description: `Could not fetch waterfall data providers. Error: ${errorMessage}`,
+					}];
+				}
+				return returnData;
+			},
+
 			// Load tables - temporarily hidden, can be re-enabled later
 			// async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 			// 	const returnData: INodePropertyOptions[] = [];
@@ -851,7 +994,7 @@ export class Databar implements INodeType {
 					
 					if (!enrichmentId || isNaN(enrichmentId)) {
 						return [{
-							name: '👆 Select an enrichment above first',
+							name: '👆 Select an Enrichment Above First',
 							value: '{}',
 							description: 'Choose an enrichment from the dropdown above to see its parameter template here.',
 						}];
@@ -872,7 +1015,7 @@ export class Databar implements INodeType {
 
 					if (params.length === 0) {
 						return [{
-							name: '✅ No parameters required',
+							name: '✅ No Parameters Required',
 							value: '{}',
 							description: 'This enrichment does not require any parameters. You can leave the Parameters field empty.',
 						}];
@@ -902,7 +1045,7 @@ export class Databar implements INodeType {
 					const paramList = paramDescriptions.join('\n');
 
 					return [{
-						name: '📋 Template loaded',
+						name: '📋 Template Loaded',
 						value: singleLineJson,  // Valid JSON string without newlines
 						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template:\n${templateJson}`,
 					}];
@@ -910,9 +1053,97 @@ export class Databar implements INodeType {
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
-						name: '⚠️ Error loading template',
+						name: '⚠️ Error Loading Template',
 						value: '{}',
 						description: `Could not fetch enrichment parameters. Error: ${errorMessage}\n\nTry:\n• Verify the enrichment ID is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
+					}];
+				}
+			},
+
+			/**
+			 * Get parameter template for selected waterfall
+			 * 
+			 * Fetches waterfall details and generates a JSON template showing
+			 * required and optional parameters with their types and descriptions.
+			 */
+			async getWaterfallTemplate(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					// Get waterfall identifier
+					let waterfallIdentifier: string | undefined;
+					
+					try {
+						const waterfallIdRaw = this.getCurrentNodeParameter('waterfallIdentifier');
+						if (waterfallIdRaw) {
+							waterfallIdentifier = waterfallIdRaw as string;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+					
+					if (!waterfallIdentifier) {
+						return [{
+							name: '👆 Select a Waterfall Above First',
+							value: '{}',
+							description: 'Choose a waterfall from the dropdown above to see its parameter template here.',
+						}];
+					}
+
+					// Fetch waterfall details
+					const waterfall = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
+						},
+					);
+
+					const waterfallData = waterfall as IDataObject;
+					const inputParams = (waterfallData.input_params as IDataObject[]) || [];
+
+					if (inputParams.length === 0) {
+						return [{
+							name: '✅ No Parameters Required',
+							value: '{}',
+							description: 'This waterfall does not require any parameters. You can leave the Parameters field empty.',
+						}];
+					}
+
+					// Build template object
+					const template: IDataObject = {};
+					const paramDescriptions: string[] = [];
+
+					for (const param of inputParams) {
+						const paramName = param.name as string;
+						const isRequired = param.required as boolean;
+						const typeField = param.type as string;
+						const description = 'Waterfall input parameter';
+						
+						// Add to template with placeholder
+						template[paramName] = `<${typeField}>`;
+						
+						// Add to description list
+						const requiredLabel = isRequired ? '🔴 REQUIRED' : '⚪ optional';
+						paramDescriptions.push(`${requiredLabel} • ${paramName} (${typeField})`);
+					}
+
+					// Format as readable JSON
+					const templateJson = JSON.stringify(template, null, 2);
+					const singleLineJson = JSON.stringify(template);  // Single line for expression
+					const paramList = paramDescriptions.join('\n');
+
+					return [{
+						name: '📋 Template Loaded',
+						value: singleLineJson,  // Valid JSON string without newlines
+						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template:\n${templateJson}`,
+					}];
+
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
+					return [{
+						name: '⚠️ Error Loading Template',
+						value: '{}',
+						description: `Could not fetch waterfall parameters. Error: ${errorMessage}\n\nTry:\n• Verify the waterfall identifier is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
 					}];
 				}
 			},
@@ -989,6 +1220,90 @@ export class Databar implements INodeType {
 							type: fieldType,
 							canBeUsedToMatch: false,
 							description: `${description} (${typeField})`,
+						};
+					});
+
+					return {
+						fields,
+					};
+
+				} catch (error) {
+					// Return empty fields on error
+					return {
+						fields: [],
+					};
+				}
+			},
+
+			/**
+			 * Get waterfall fields for resource mapper
+			 * 
+			 * Fetches waterfall details and returns field definitions for the resource mapper.
+			 * This allows users to fill in parameters using individual input fields.
+			 */
+			async getWaterfallFields(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
+				try {
+					// Get waterfall identifier
+					let waterfallIdentifier: string | undefined;
+					
+					try {
+						const waterfallIdRaw = this.getCurrentNodeParameter('waterfallIdentifier');
+						if (waterfallIdRaw) {
+							waterfallIdentifier = waterfallIdRaw as string;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+					
+					if (!waterfallIdentifier) {
+						// Return empty fields if no waterfall selected
+						return {
+							fields: [],
+						};
+					}
+
+					// Fetch waterfall details
+					const waterfall = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
+						},
+					);
+
+					const waterfallData = waterfall as IDataObject;
+					const inputParams = (waterfallData.input_params as IDataObject[]) || [];
+
+					if (inputParams.length === 0) {
+						return {
+							fields: [],
+						};
+					}
+
+					// Build field definitions for resource mapper
+					const fields: ResourceMapperField[] = inputParams.map((param) => {
+						const paramName = param.name as string;
+						const isRequired = param.required as boolean;
+						const typeField = param.type as string;
+						
+						// Map Databar types to n8n resource mapper types
+						let fieldType: 'string' | 'number' | 'boolean' | 'time' | 'object' | 'options' | 'array' = 'string';
+						if (typeField === 'number' || typeField === 'integer') {
+							fieldType = 'number';
+						} else if (typeField === 'boolean') {
+							fieldType = 'boolean';
+						}
+
+						return {
+							id: paramName,
+							displayName: paramName.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+							required: isRequired,
+							defaultMatch: false,
+							display: true,
+							type: fieldType,
+							canBeUsedToMatch: false,
+							description: `Waterfall input parameter (${typeField})`,
 						};
 					});
 
@@ -1296,27 +1611,35 @@ export class Databar implements INodeType {
 						returnData.push(response as IDataObject);
 					} else if (operation === 'run') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
-						const paramsJson = this.getNodeParameter('params', i) as string;
-						const enrichmentsStr = this.getNodeParameter('enrichments', i) as string;
+						const parameterMode = this.getNodeParameter('waterfallParameterMode', i, 'fields') as string;
+						const enrichmentsRaw = this.getNodeParameter('enrichments', i, []) as (string | number)[];
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Parse JSON parameters
+						// Get parameters based on input mode
 						let params: IDataObject;
-						try {
-							params = JSON.parse(paramsJson);
-						} catch (error) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'Parameters must be valid JSON object',
-								{ itemIndex: i },
-							);
+						if (parameterMode === 'fields') {
+							// Resource mapper mode - get structured fields
+							const paramsFields = this.getNodeParameter('waterfallParamsFields', i) as IDataObject;
+							// Resource mapper returns an object with 'value' containing the actual data
+							params = (paramsFields.value as IDataObject) || {};
+						} else {
+							// Raw JSON mode - parse JSON string
+							const paramsJson = this.getNodeParameter('params', i) as string;
+							try {
+								params = JSON.parse(paramsJson);
+							} catch (error) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'Parameters must be valid JSON object',
+									{ itemIndex: i },
+								);
+							}
 						}
 
-						// Parse enrichment IDs
-						const enrichments = enrichmentsStr
-							.split(',')
-							.map((id) => parseInt(id.trim(), 10))
-							.filter((id) => !isNaN(id));
+						// Convert enrichment IDs to numbers (multiOptions returns array of selected values)
+						const enrichments = enrichmentsRaw.map((id) => {
+							return typeof id === 'string' ? parseInt(id, 10) : id;
+						}).filter((id) => !isNaN(id));
 
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,

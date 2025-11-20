@@ -2,419 +2,270 @@
 
 This is an n8n community node that lets you use [Databar.ai](https://databar.ai) in your n8n workflows.
 
-Databar.ai provides powerful data enrichment capabilities and table management features for your workflows.
+Databar.ai provides powerful data enrichment capabilities for your automation workflows - enrich contacts, companies, and more with data from multiple providers.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
+[Installation](#installation) · [Configuration](#configuration) · [Operations](#operations) · [Examples](#usage-examples) · [Support](#support)
+
 ## ✨ Features
 
-- **🔍 Dynamic Enrichment Discovery**: Search and select from all available enrichments with descriptions, data sources, and credit costs displayed in-app
-- **📝 Smart Parameter Input**: Choose between guided individual fields or raw JSON input - the node adapts to your enrichment's requirements automatically
-- **⏱️ Automatic Async Handling**: Built-in polling for async API calls - no need for separate nodes to check task status
-- **📊 Complete API Coverage**: All Databar.ai REST API endpoints are supported
-- **🎯 Type-Safe**: Full TypeScript implementation with proper type validation
+- **🔍 Smart Enrichment Selection**: Browse and search all available enrichments with descriptions, data sources, and pricing displayed in-app
+- **📝 Flexible Parameter Input**: Choose between guided individual fields or raw JSON - adapts automatically to your enrichment's requirements
+- **⏱️ Automatic Async Handling**: Built-in polling for async operations - no manual status checking needed
+- **🌊 Waterfall Support**: Chain multiple data providers with automatic fallback
+- **🎯 Type-Safe**: Full TypeScript implementation with proper validation
 
 ## Installation
 
-### For Self-Hosted n8n (Recommended for Development)
+### Community Nodes (Recommended)
 
-#### Quick Install
-```bash
-# Clone the repository
-cd /path/to/n8n-nodes-databar
+Follow this guide in your n8n instance:
 
-# Build the project
-npm install
-npm run build
-
-# Copy to n8n custom directory
-cp -r dist/* ~/.n8n/custom/
-
-# Restart n8n
-pkill -f "n8n" && n8n start
-```
-
-#### Install Globally from GitHub
-```bash
-npm install -g https://github.com/databar-ai/n8n-nodes-databar
-```
-
-Then manually register the node by adding entries to n8n's database (see troubleshooting section if needed).
-
-### For n8n Cloud
-
-This node must be published to npm to be used with n8n Cloud:
-
-```bash
-npm publish
-```
-
-Then in n8n Cloud:
-1. Go to **Settings > Community Nodes**
-2. Click **Install a community node**
+**For n8n Cloud:**
+1. Go to **Settings → Community Nodes**
+2. Select **Install**
 3. Enter `n8n-nodes-databar`
-4. Click **Install**
+4. Agree to the risks of using community nodes
+5. Select **Install**
+
+**For Self-Hosted n8n:**
+1. Go to **Settings → Community Nodes**
+2. Select **Install**
+3. Enter `n8n-nodes-databar`
+4. Select **Install**
+5. Restart your n8n instance
+
+After installation, the Databar node will appear in your node panel.
+
+### npm Installation
+
+Alternatively, install via npm:
+
+```bash
+npm install n8n-nodes-databar
+```
+
+Then restart your n8n instance.
 
 ## Prerequisites
 
 You need a Databar.ai account and API key:
 
-1. Log in to your [Databar workspace](https://databar.ai)
-2. Navigate to **Integrations**
+1. Sign up at [Databar.ai](https://databar.ai)
+2. Navigate to **Integrations** in your workspace
 3. Copy your API key
-
-**Note:** REST API access may require scheduling a call with Databar.
 
 ## Configuration
 
-### Add Credentials in n8n
+### Setting up Credentials
 
-1. Go to **Credentials** in n8n
-2. Click **Create New Credential**
-3. Search for **Databar API**
-4. Enter your API Key from Databar workspace
-5. Click **Save**
+1. In n8n, go to **Credentials → New**
+2. Search for **Databar API**
+3. Enter your API Key
+4. Click **Save**
+
+The credentials will be tested automatically to ensure they work.
 
 ## Operations
 
 ### User
-- **Get User Info**: Retrieve account information including balance and plan details
+- **Get Account Info**: Retrieve your account information, balance, and plan details
 
 ### Enrichment
-- **List**: Browse all available enrichments with optional search filtering
-- **Get**: Get detailed information about a specific enrichment including parameters and pricing
 - **Run**: Execute a single enrichment task
-  - **Automatic Polling**: Enable "Wait for Completion" to automatically poll until results are ready
-  - **From List**: Select enrichments from a searchable dropdown with descriptions and pricing
-  - **By ID**: Manually enter enrichment ID as fallback
-- **Bulk Run**: Execute enrichment on multiple records simultaneously with automatic polling support
-
-### Table
-- **Create**: Create a new table in your workspace
-- **List**: Get all tables in your workspace
-- **Get Rows**: Retrieve rows from a table with pagination support
-- **Get Columns**: Get column definitions for a table
-- **Get Enrichments**: List enrichments associated with a table
-- **Add Enrichment**: Add an enrichment to a table with custom parameter mapping
-- **Run Enrichment**: Execute a table enrichment
+  - Browse enrichments from a searchable dropdown
+  - See descriptions, data sources, and credit costs
+  - Choose guided fields or JSON input
+  - Automatic polling for results
+- **Bulk Run**: Execute enrichment on multiple records simultaneously
 
 ### Waterfall
-- **List**: Browse all available waterfalls with searchable dropdown
-- **Get**: Get detailed information about a specific waterfall
-- **Run**: Execute a waterfall task with automatic polling
-- **Bulk Run**: Execute waterfall on multiple records with automatic polling
-
-### Task
-- **Get Status**: Check status and retrieve data from async enrichment or waterfall tasks
+- **List**: Browse all available waterfalls
+- **Get**: Get details about a specific waterfall
+- **Run**: Execute a waterfall with multiple data providers
+  - Select which providers to use
+  - Automatic fallback between providers
+  - Configurable polling and timeouts
 
 ## Key Features Explained
 
-### 1. Dynamic Enrichment Selection
+### Dynamic Enrichment Selection
 
-Instead of needing to know enrichment IDs, you can:
-- Browse all enrichments in a searchable dropdown
-- See enrichment name, description, data source, and credit cost
-- Select from the list or enter an ID manually
+Instead of needing to know enrichment IDs, browse all available enrichments in a searchable dropdown with full details:
 
-Example dropdown entry:
 ```
+Email Validator
+↳ Verify if an email address is valid and deliverable | ZeroBounce · 0.01 Credits
+
 Get people data from email
-↳ Returns a person's name, location, social media... | Clearbit Companies API · 0.10 Credits
+↳ Returns a person's name, location, social media... | Clearbit · 0.10 Credits
 ```
 
-### 2. Smart Parameter Input (Guided Fields)
+### Smart Parameter Input
 
-**NEW!** Choose how you want to input parameters:
+**Guided Fields Mode (Recommended)**
 
-#### **Option 1: Guided Fields (Recommended)**
 The node automatically generates individual input fields for each parameter:
-- Fetches enrichment requirements from the API
-- Creates labeled input fields with proper types (text, number, boolean)
-- Shows descriptions and marks required vs optional fields
-- Type-safe input with validation
-- Perfect for manual data entry and simple workflows
+- Labeled fields with proper types (text, number, boolean)
+- Required vs optional indicators
+- Built-in descriptions
+- Type validation
 
-#### **Option 2: Raw JSON**
-Traditional JSON object input for power users:
-- Enter parameters as a JSON object
-- Best for complex objects and dynamic expressions
+**Raw JSON Mode**
+
+For power users and dynamic workflows:
+- Enter parameters as JSON object
+- Use n8n expressions
 - Full control over input format
 
-**Example: Guided Fields Mode**
+**Example:**
 ```
-1. Select enrichment "Get people data from email"
-2. Parameter Input Mode: Guided Fields (default)
-3. The node automatically shows:
-   
-   Email: [______________] (Required)
-   ↳ Email address to enrich (text)
-   
-   First Name: [______________] (Optional)
-   ↳ Person's first name (text)
-   
-4. Fill in the fields directly
-5. Execute!
+Guided Fields:
+  Email: john@example.com ✓ (Required)
+  First Name: John (Optional)
+
+Raw JSON:
+  {
+    "email": "john@example.com",
+    "first_name": "John"
+  }
 ```
 
-**Example: Raw JSON Mode**
-```
-1. Select enrichment
-2. Parameter Input Mode: Raw JSON
-3. Parameters (JSON):
-   {
-     "email": "john@example.com",
-     "first_name": "John"
-   }
-4. Execute!
-```
+### Automatic Async Handling
 
-No more guessing parameter names or types! The fields adapt automatically to whichever enrichment you select.
+Enrichment and waterfall operations are asynchronous. This node handles it automatically:
 
-### 3. Automatic Async Task Polling
+**With "Wait for Completion" enabled (default):**
+- Submits the task
+- Polls every 3 seconds
+- Returns completed results
+- Clear error messages on failure
 
-Databar's enrichment and waterfall operations are asynchronous. This node handles the complexity for you:
+**With "Wait for Completion" disabled:**
+- Returns `task_id` immediately
+- Check status later with another node
 
-**When "Wait for Completion" is enabled (default):**
-- Node submits the task
-- Automatically polls task status every 5 seconds (configurable)
-- Returns completed results directly
-- Throws clear errors if task fails
-
-**When "Wait for Completion" is disabled:**
-- Returns the `task_id` immediately
-- Use the **Task > Get Status** operation to check results later
-
-**Polling Configuration:**
-- **Poll Interval**: Seconds between status checks (default: 5)
-- **Timeout**: Maximum seconds to wait before failing (default: 300 / 5 minutes)
-
-### 3. Full URL Handling
-
-All API calls use absolute URLs (`https://api.databar.ai/v1/...`) to ensure compatibility with n8n's authentication system.
+**Configuration:**
+- **Poll Interval**: Seconds between checks (default: 3)
+- **Timeout**: Maximum wait time (default: 300 seconds)
 
 ## Usage Examples
 
-### Example 1: Email Enrichment with Guided Fields
+### Example 1: Email Enrichment
 
 ```
-1. Add Databar node
-2. Resource: Enrichment
-3. Operation: Run
-4. Enrichment Selection: From List
-5. Search and select "Get people data from email"
-6. Parameter Input Mode: Guided Fields (default)
-7. Individual fields auto-appear:
-   - Email: john@example.com
-8. Wait for Completion: ✓ True
-9. Execute → Returns enriched data directly!
+1. Add Databar node to workflow
+2. Select Resource: Enrichment
+3. Select Operation: Run
+4. Select enrichment from dropdown (e.g., "Get people data from email")
+5. Enter email address in the Email field
+6. Execute → Returns enriched contact data
 ```
 
-**Alternative with Raw JSON:**
-```
-...step 5...
-6. Parameter Input Mode: Raw JSON
-7. Parameters (JSON): {"email": "john@example.com"}
-8. Wait for Completion: ✓ True
-9. Execute → Returns enriched data directly!
-```
-
-### Example 2: Bulk Waterfall Enrichment
+### Example 2: Waterfall with Multiple Providers
 
 ```
 1. Add Databar node
 2. Resource: Waterfall
-3. Operation: Bulk Run
-4. Waterfall: Select from dropdown
-5. Parameters (JSON):
-   [
-     {"first_name": "John", "last_name": "Doe", "company": "example.com"},
-     {"first_name": "Jane", "last_name": "Smith", "company": "test.org"}
-   ]
-6. Enrichment IDs: 833,966
-7. Wait for Completion: ✓ True
-8. Execute → Returns all results when complete
+3. Operation: Run
+4. Select your waterfall from dropdown
+5. Enter parameters (e.g., company domain)
+6. Select data providers to use
+7. Execute → Returns data from first successful provider
 ```
 
-### Example 3: Browse Available Enrichments
+### Example 3: Bulk Contact Enrichment
 
 ```
 1. Add Databar node
 2. Resource: Enrichment
-3. Operation: List
-4. Search Query: "email" (optional)
-5. Execute → Returns all matching enrichments with details
+3. Operation: Bulk Run
+4. Select enrichment
+5. Enter array of records:
+   [
+     {"email": "john@example.com"},
+     {"email": "jane@company.com"}
+   ]
+6. Execute → Returns all enriched records
 ```
 
-### Example 4: Manual Task Status Check
+### Example 4: Integration with Other Nodes
 
 ```
-1. Run an enrichment with "Wait for Completion" disabled
-2. Note the task_id from response
-3. Add another Databar node
-4. Resource: Task
-5. Operation: Get Status
-6. Task ID: <paste task_id>
-7. Execute → Check if completed and get results
+Webhook → Databar (Enrich) → Filter → Send Email
+
+Example workflow:
+1. Webhook receives new lead
+2. Databar enriches with company data
+3. Filter checks if company size > 100
+4. Send personalized email to qualified leads
 ```
-
-## Architecture
-
-### Project Structure
-
-```
-n8n-nodes-databar/
-├── credentials/
-│   └── DatabarApi.credentials.ts    # API key credential definition
-├── nodes/
-│   └── Databar/
-│       ├── Databar.node.ts          # Main node implementation
-│       └── databar.svg              # Node icon
-├── dist/                            # Compiled JavaScript (generated)
-├── package.json                     # Node package configuration
-├── tsconfig.json                    # TypeScript configuration
-├── gulpfile.js                      # Icon build script
-├── openapi.json                     # API specification (reference)
-├── LICENSE                          # MIT license
-└── README.md                        # This file
-```
-
-### Technical Details
-
-**Authentication:**
-- Uses `x-apikey` header for all requests
-- Credentials stored securely in n8n's credential system
-
-**URL Handling:**
-- All API calls use absolute URLs: `https://api.databar.ai/v1/...`
-- This ensures proper request routing in n8n's HTTP client
-
-**Async Polling:**
-- Implemented as standalone `pollTaskStatus()` helper function
-- Polls `/v1/tasks/{task_id}` endpoint until status is `completed` or `failed`
-- Configurable interval and timeout
-- Proper error handling with clear error messages
-
-**Dynamic Options:**
-- `loadOptionsMethod` functions fetch enrichments, waterfalls, and tables from API
-- Options are searchable client-side with `searchable: true`
-- Falls back to manual ID entry if needed
-
-**Resource Mapper (Guided Fields):**
-- `resourceMapperMethod` dynamically generates input fields based on enrichment parameters
-- Fetches parameter definitions from `/v1/enrichments/{id}` endpoint
-- Maps Databar types (text, number, boolean) to n8n field types
-- Displays required/optional status and descriptions
-- Returns structured data in `paramsFields.value` object
-
-**Type Safety:**
-- Full TypeScript with `IExecuteFunctions`, `ILoadOptionsFunctions` contexts
-- Explicit type conversions and validations for all parameters
-- Proper error handling with `NodeOperationError`
-
-## Development
-
-### Building
-
-```bash
-npm install
-npm run build
-```
-
-### Local Testing
-
-```bash
-# Build and copy to n8n
-npm run build && cp -r dist/* ~/.n8n/custom/
-
-# Restart n8n
-pkill -f "n8n" && n8n start
-```
-
-### Code Structure
-
-The main node (`Databar.node.ts`) is organized as:
-
-1. **Imports & Helper Functions**: Standalone functions like `pollTaskStatus()`
-2. **Class Definition**: `Databar` class implementing `INodeType`
-3. **Description**: Node metadata, properties, and UI configuration
-4. **Methods**: 
-   - `loadOptions`: Dynamic option loaders for dropdowns
-   - `resourceMapping`: Dynamic field generators for guided input (resourceMapper)
-   - `getEnrichmentParams`: Helper to fetch enrichment details
-5. **Execute Function**: Main execution logic with resource/operation routing
 
 ## Troubleshooting
 
-### Node Not Appearing in n8n
+### Node Not Appearing
 
-If the node doesn't appear after installation:
+If the Databar node doesn't appear after installation:
+1. Restart your n8n instance
+2. Clear your browser cache
+3. Check n8n logs for any installation errors
 
-1. Check that files are in `~/.n8n/custom/`:
-   ```bash
-   ls -la ~/.n8n/custom/nodes/Databar/
-   ```
+### Authentication Errors
 
-2. Check n8n logs:
-   ```bash
-   tail -f ~/.n8n/n8n.log
-   ```
+If you see authentication errors:
+- Verify your API key is correct in credentials
+- Check that your Databar account is active
+- Ensure you have sufficient credits
 
-3. Manually add to database (if needed):
-   ```bash
-   sqlite3 ~/.n8n/database.sqlite
-   
-   INSERT INTO installed_packages VALUES ('n8n-nodes-databar','0.1.0',NOW(),NOW());
-   INSERT INTO installed_nodes VALUES ('n8n.nodes.Databar','databar','0.1.0','n8n-nodes-databar',NOW(),NOW());
-   INSERT INTO installed_nodes VALUES ('credentials.DatabarApi','databarApi','0.1.0','n8n-nodes-databar',NOW(),NOW());
-   ```
+### Enrichment Dropdown Empty
 
-4. Restart n8n
+If enrichments don't load in the dropdown:
+- Check your internet connection
+- Verify API key has proper permissions
+- Use "By ID" mode as a fallback to enter enrichment ID manually
 
-### "Invalid URL" Errors
+### Task Timeout
 
-All URLs are now absolute paths (`https://api.databar.ai/v1/...`). If you still see this error:
-- Check that you're using the latest build
-- Verify API key is correctly configured in credentials
-- Check n8n logs for specific error details
-
-### "pollTaskStatus is not a function"
-
-This was fixed by moving `pollTaskStatus` outside the class as a standalone function. If you see this:
-- Ensure you have the latest code from GitHub
-- Rebuild and redeploy: `npm run build && cp -r dist/* ~/.n8n/custom/`
-
-### Enrichment Dropdown Not Loading
-
-If enrichments don't appear in dropdown:
-- Check that your API key has proper permissions
-- Verify you can access `https://api.databar.ai/v1/enrichments/` directly
-- Fall back to "By ID" mode to manually enter enrichment ID
+If enrichment tasks timeout:
+- Increase timeout in Additional Options
+- Check if the enrichment requires more time
+- Consider disabling "Wait for Completion" and checking status separately
 
 ## Resources
 
-- [Databar.ai](https://databar.ai)
-- [Databar.ai API Documentation](https://databar.ai/docs/api)
-- [n8n Documentation](https://docs.n8n.io/)
-- [n8n Community Nodes](https://docs.n8n.io/integrations/community-nodes/)
-- [GitHub Repository](https://github.com/databar-ai/n8n-nodes-databar)
+- [Databar.ai](https://databar.ai) - Main website
+- [Databar API Documentation](https://databar.ai/docs/api) - API reference
+- [n8n Documentation](https://docs.n8n.io/) - n8n platform docs
+- [GitHub Repository](https://github.com/databar-ai/n8n-nodes-databar) - Source code
 
 ## Support
 
-For issues or questions:
-- **Databar API Support**: Contact info@databar.ai
-- **Node Issues**: Open an issue on [GitHub](https://github.com/databar-ai/n8n-nodes-databar/issues)
+**For Databar API issues:**
+- Email: info@databar.ai
+- Visit: [Databar.ai](https://databar.ai)
+
+**For node issues:**
+- GitHub Issues: [n8n-nodes-databar/issues](https://github.com/databar-ai/n8n-nodes-databar/issues)
 
 ## Version History
 
-### 0.1.0 (Current)
-- ✅ Initial release with full API coverage
-- ✅ Dynamic enrichment/waterfall/table dropdowns with search
-- ✅ **Guided Fields Mode**: Automatic parameter field generation with resourceMapper
-- ✅ **Dual Input Modes**: Choose between guided fields or raw JSON for parameters
-- ✅ Automatic async task polling with configurable options
-- ✅ Support for all Databar.ai REST API endpoints
-- ✅ Type-safe implementation with proper error handling
-- ✅ Complete documentation and troubleshooting guides
+### 0.1.1
+- Improved documentation for end users
+- Removed internal development scaffolding
+- Cleaner installation and setup instructions
+- Added CONTRIBUTING.md for developers
+
+### 0.1.0
+- Initial release
+- Dynamic enrichment and waterfall selection
+- Guided fields and JSON input modes
+- Automatic async task polling
+- Full Databar.ai API coverage
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
