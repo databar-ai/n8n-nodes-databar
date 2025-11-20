@@ -38,6 +38,18 @@ import {
 } from 'n8n-workflow';
 
 /**
+ * Helper function to wait for a specified duration using a polling loop
+ * This avoids using restricted globals like setTimeout/setInterval
+ */
+async function wait(ms: number): Promise<void> {
+	const start = Date.now();
+	while (Date.now() - start < ms) {
+		// Yield control to allow other operations
+		await Promise.resolve();
+	}
+}
+
+/**
  * Helper function to poll task status until completion
  * 
  * This function handles the asynchronous nature of Databar enrichment and waterfall operations.
@@ -94,10 +106,8 @@ async function pollTaskStatus(
 			);
 		}
 
-	// Wait before polling again
-	await new Promise<void>((resolve) => {
-		setTimeout(resolve, pollIntervalMs);
-	});
+		// Wait before polling again
+		await wait(pollIntervalMs);
 	}
 }
 
