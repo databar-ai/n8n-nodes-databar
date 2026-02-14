@@ -32,22 +32,12 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	IDataObject,
+	NodeConnectionTypes,
 	NodeOperationError,
 	ResourceMapperFields,
 	ResourceMapperField,
+	sleep,
 } from 'n8n-workflow';
-
-/**
- * Helper function to wait for a specified duration using a polling loop
- * This avoids using restricted globals like setTimeout/setInterval
- */
-async function wait(ms: number): Promise<void> {
-	const start = Date.now();
-	while (Date.now() - start < ms) {
-		// Yield control to allow other operations
-		await Promise.resolve();
-	}
-}
 
 /**
  * Helper function to poll task status until completion
@@ -107,7 +97,7 @@ async function pollTaskStatus(
 		}
 
 		// Wait before polling again
-		await wait(pollIntervalMs);
+		await sleep(pollIntervalMs);
 	}
 }
 
@@ -123,8 +113,8 @@ export class Databar implements INodeType {
 		defaults: {
 			name: 'Databar',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
 		credentials: [
 			{
 				name: 'databarApi',
@@ -1373,7 +1363,7 @@ export class Databar implements INodeType {
 	 */
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
-		const returnData: IDataObject[] = [];
+		const returnData: INodeExecutionData[] = [];
 		const resource = this.getNodeParameter('resource', 0) as string;
 		const operation = this.getNodeParameter('operation', 0) as string;
 
@@ -1392,7 +1382,10 @@ export class Databar implements INodeType {
 								url: 'https://api.databar.ai/v1/user/me',
 							},
 						);
-						returnData.push(response as IDataObject);
+						returnData.push({
+							json: response as IDataObject,
+							pairedItem: { item: i },
+						});
 					}
 				}
 
@@ -1456,9 +1449,15 @@ export class Databar implements INodeType {
 							
 							// Poll for completion
 							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
-							returnData.push(completedTask);
+							returnData.push({
+								json: completedTask,
+								pairedItem: { item: i },
+							});
 						} else {
-							returnData.push(taskResponse);
+							returnData.push({
+								json: taskResponse,
+								pairedItem: { item: i },
+							});
 						}
 					} else if (operation === 'bulkRun') {
 						const enrichmentIdRaw = this.getNodeParameter('enrichmentId', i);
@@ -1506,89 +1505,18 @@ export class Databar implements INodeType {
 							
 							// Poll for completion
 							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
-							returnData.push(completedTask);
+							returnData.push({
+								json: completedTask,
+								pairedItem: { item: i },
+							});
 						} else {
-							returnData.push(taskResponse);
+							returnData.push({
+								json: taskResponse,
+								pairedItem: { item: i },
+							});
 						}
 					}
 				}
-
-				// ====================================
-				//        TABLE OPERATIONS
-				// ====================================
-				// Table operations temporarily hidden - can be re-enabled later
-				// else if (resource === 'table') {
-				// 	if (operation === 'create') {
-				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
-				// 			this,
-				// 			'databarApi',
-				// 			{
-				// 				method: 'POST',
-				// 				url: 'https://api.databar.ai/v1/table/create',
-				// 				body: {},
-				// 			},
-				// 		);
-				// 		returnData.push(response as IDataObject);
-				// 	} else if (operation === 'list') {
-				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
-				// 			this,
-				// 			'databarApi',
-				// 			{
-				// 				method: 'GET',
-				// 				url: 'https://api.databar.ai/v1/table/',
-				// 			},
-				// 		);
-				// 		if (Array.isArray(response)) {
-				// 			returnData.push(...(response as IDataObject[]));
-				// 		} else {
-				// 			returnData.push(response as IDataObject);
-				// 		}
-				// 	} else if (operation === 'getRows') {
-				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-				// 		const perPage = this.getNodeParameter('perPage', i) as number;
-				// 		const page = this.getNodeParameter('page', i) as number;
-				// 		
-				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
-				// 			this,
-				// 			'databarApi',
-				// 			{
-				// 				method: 'GET',
-				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/rows`,
-				// 				qs: { per_page: perPage, page },
-				// 			},
-				// 		);
-				// 		returnData.push(response as IDataObject);
-				// 	} else if (operation === 'getColumns') {
-				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-				// 		
-				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
-				// 			this,
-				// 			'databarApi',
-				// 			{
-				// 				method: 'GET',
-				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/columns`,
-				// 			},
-				// 		);
-				// 		if (Array.isArray(response)) {
-				// 			returnData.push(...(response as IDataObject[]));
-				// 		} else {
-				// 			returnData.push(response as IDataObject);
-				// 		}
-				// 	} else if (operation === 'runEnrichment') {
-				// 		const tableUuid = this.getNodeParameter('tableUuid', i) as string;
-				// 		const tableEnrichmentId = this.getNodeParameter('tableEnrichmentId', i) as string;
-				// 		
-				// 		const response = await this.helpers.httpRequestWithAuthentication.call(
-				// 			this,
-				// 			'databarApi',
-				// 			{
-				// 				method: 'GET',
-				// 				url: `https://api.databar.ai/v1/table/${tableUuid}/run-enrichment/${tableEnrichmentId}`,
-				// 			},
-				// 		);
-				// 		returnData.push(response as IDataObject);
-				// 	}
-				// }
 
 				// ====================================
 				//      WATERFALL OPERATIONS
@@ -1604,9 +1532,17 @@ export class Databar implements INodeType {
 							},
 						);
 						if (Array.isArray(response)) {
-							returnData.push(...(response as IDataObject[]));
+							for (const item of response as IDataObject[]) {
+								returnData.push({
+									json: item,
+									pairedItem: { item: i },
+								});
+							}
 						} else {
-							returnData.push(response as IDataObject);
+							returnData.push({
+								json: response as IDataObject,
+								pairedItem: { item: i },
+							});
 						}
 					} else if (operation === 'get') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
@@ -1618,7 +1554,10 @@ export class Databar implements INodeType {
 								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
 							},
 						);
-						returnData.push(response as IDataObject);
+						returnData.push({
+							json: response as IDataObject,
+							pairedItem: { item: i },
+						});
 					} else if (operation === 'run') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
 						const parameterMode = this.getNodeParameter('waterfallParameterMode', i, 'fields') as string;
@@ -1671,23 +1610,32 @@ export class Databar implements INodeType {
 							
 							// Poll for completion
 							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
-							returnData.push(completedTask);
+							returnData.push({
+								json: completedTask,
+								pairedItem: { item: i },
+							});
 						} else {
-							returnData.push(taskResponse);
+							returnData.push({
+								json: taskResponse,
+								pairedItem: { item: i },
+							});
 						}
 					}
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
-					returnData.push({ error: errorMessage });
+					returnData.push({
+						json: { error: errorMessage },
+						pairedItem: { item: i },
+					});
 					continue;
 				}
 				throw error;
 			}
 		}
 
-		return [this.helpers.returnJsonArray(returnData)];
+		return [returnData];
 	}
 }
 

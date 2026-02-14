@@ -126,10 +126,10 @@ Guided Fields:
   First Name: John (Optional)
 
 Raw JSON:
-  {
-    "email": "john@example.com",
-    "first_name": "John"
-  }
+   {
+     "email": "john@example.com",
+     "first_name": "John"
+   }
 ```
 
 ### Automatic Async Handling
