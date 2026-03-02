@@ -57,20 +57,25 @@ async function pollTaskStatus(
 	pollInterval: number,
 	timeout: number,
 ): Promise<IDataObject> {
+	if (!taskId) {
+		throw new NodeOperationError(
+			context.getNode(),
+			'No task ID returned by the API. The request may have failed — check that your parameters are correct and you have enough credits.',
+		);
+	}
+
 	const startTime = Date.now();
 	const pollIntervalMs = pollInterval * 1000;
 	const timeoutMs = timeout * 1000;
 
 	while (true) {
-		// Check if we've exceeded the timeout
 		if (Date.now() - startTime > timeoutMs) {
 			throw new NodeOperationError(
 				context.getNode(),
-				`Task ${taskId} timed out after ${timeout} seconds`,
+				`Task ${taskId} timed out after ${timeout} seconds. You can increase the timeout in Additional Options.`,
 			);
 		}
 
-		// Check task status
 		const response = await context.helpers.httpRequestWithAuthentication.call(
 			context,
 			'databarApi',
@@ -95,7 +100,13 @@ async function pollTaskStatus(
 			);
 		}
 
-		// Wait before polling again
+		if (status === 'gone') {
+			throw new NodeOperationError(
+				context.getNode(),
+				`Task ${taskId} data has expired. Results are only available for 1 hour after completion.`,
+			);
+		}
+
 		await sleep(pollIntervalMs);
 	}
 }
@@ -168,16 +179,39 @@ export class Databar implements INodeType {
 						resource: ['user'],
 					},
 				},
-				options: [
-					{
-						name: 'Get Account Info',
-						value: 'getMe',
-						description: 'Get information about your current account',
-						action: 'Get account info',
-					},
-				],
-				default: 'getMe',
+			options: [
+				{
+					name: 'Get Account Info',
+					value: 'getMe',
+					description: 'Get information about your current account',
+					action: 'Get account info',
+				},
+				{
+					name: 'Get Task',
+					value: 'getTask',
+					description: 'Retrieve the status and results of a previously run enrichment or waterfall task',
+					action: 'Get task result',
+				},
+			],
+			default: 'getMe',
+		},
+
+		// Other: Get Task - Task ID
+		{
+			displayName: 'Task ID',
+			name: 'taskId',
+			type: 'string',
+			displayOptions: {
+				show: {
+					resource: ['user'],
+					operation: ['getTask'],
+				},
 			},
+			default: '',
+			required: true,
+			placeholder: 'e.g. 123e4567-e89b-12d3-a456-426614174000',
+			description: 'The task ID returned when you ran an enrichment or waterfall with "Wait for Completion" turned off. Results are only stored for 1 hour.',
+		},
 
 			// ====================================
 			//      ENRICHMENT OPERATIONS
@@ -1377,8 +1411,8 @@ export class Databar implements INodeType {
 				// ====================================
 				//         USER OPERATIONS
 				// ====================================
-				if (resource === 'user') {
-					if (operation === 'getMe') {
+			if (resource === 'user') {
+				if (operation === 'getMe') {
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,
 							'databarApi',
@@ -1387,6 +1421,30 @@ export class Databar implements INodeType {
 								url: 'https://api.databar.ai/v1/user/me',
 							},
 						);
+						returnData.push({
+							json: response as IDataObject,
+							pairedItem: { item: i },
+						});
+					} else if (operation === 'getTask') {
+						const taskId = this.getNodeParameter('taskId', i) as string;
+
+						if (!taskId) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a task ID',
+								{ itemIndex: i },
+							);
+						}
+
+						const response = await this.helpers.httpRequestWithAuthentication.call(
+							this,
+							'databarApi',
+							{
+								method: 'GET',
+								url: `https://api.databar.ai/v1/tasks/${taskId}`,
+							},
+						);
+
 						returnData.push({
 							json: response as IDataObject,
 							pairedItem: { item: i },
@@ -1415,17 +1473,34 @@ export class Databar implements INodeType {
 						const paramsFields = this.getNodeParameter('paramsFields', i) as IDataObject;
 						const params: IDataObject = (paramsFields.value as IDataObject) || {};
 
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'POST',
-								url: `https://api.databar.ai/v1/enrichments/${enrichmentId}/run`,
-								body: { params },
-							},
-						);
+						let taskResponse: IDataObject;
+						try {
+							const response = await this.helpers.httpRequestWithAuthentication.call(
+								this,
+								'databarApi',
+								{
+									method: 'POST',
+									url: `https://api.databar.ai/v1/enrichments/${enrichmentId}/run`,
+									body: { params },
+								},
+							);
+							taskResponse = response as IDataObject;
+						} catch (error) {
+							const msg = error instanceof Error ? error.message : String(error);
+							throw new NodeOperationError(
+								this.getNode(),
+								`Failed to start enrichment: ${msg}`,
+								{ itemIndex: i },
+							);
+						}
 
-						const taskResponse = response as IDataObject;
+						if (taskResponse.detail) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`Enrichment API error: ${JSON.stringify(taskResponse.detail)}`,
+								{ itemIndex: i },
+							);
+						}
 						
 						if (waitForCompletion) {
 							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
@@ -1433,7 +1508,6 @@ export class Databar implements INodeType {
 							const timeout = (additionalOptions.timeout as number) || 300;
 							const taskId = taskResponse.task_id as string;
 							
-							// Poll for completion
 							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push({
 								json: completedTask,
