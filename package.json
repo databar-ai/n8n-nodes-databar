@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-databar",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "n8n node for Databar.ai API - data enrichment and table management",
   "keywords": [
     "n8n-community-node-package",

@@ -19,9 +19,8 @@
  * Resources & Operations:
  * - User: Get account info
  * - Enrichment: Run, Bulk Run (with async polling)
- * - Waterfall: List, Get, Run
- * 
- * Note: Table operations are temporarily hidden but can be re-enabled in the code
+ * - Table: Insert Rows, Upsert Rows
+ * - Waterfall: Run (with async polling)
  */
 
 import {
@@ -140,19 +139,18 @@ export class Databar implements INodeType {
 						name: 'Enrichment',
 						value: 'enrichment',
 					},
-					{
-						name: 'Waterfall',
-						value: 'waterfall',
-					},
-					// Table resource temporarily hidden - can be re-enabled later
-					// {
-					// 	name: 'Table',
-					// 	value: 'table',
-					// },
-					{
-						name: 'Other',
-						value: 'user',
-					},
+				{
+					name: 'Table',
+					value: 'table',
+				},
+				{
+					name: 'Waterfall',
+					value: 'waterfall',
+				},
+				{
+					name: 'Other',
+					value: 'user',
+				},
 				],
 				default: 'enrichment',
 			},
@@ -201,107 +199,31 @@ export class Databar implements INodeType {
 					description: 'Run an enrichment task',
 					action: 'Run enrichment',
 				},
-				{
-					name: 'Bulk Run',
-					value: 'bulkRun',
-					description: 'Run enrichment on multiple records',
-					action: 'Bulk run enrichment',
-				},
+				// Bulk Run hidden for v1 - re-add to enable:
+				// { name: 'Bulk Run', value: 'bulkRun', description: 'Run enrichment on multiple records', action: 'Bulk run enrichment' },
 			],
 			default: 'run',
 		},
 
-		// Enrichment: Selection Mode
-			{
-				displayName: 'Enrichment Selection',
-				name: 'enrichmentSelectionMode',
-				type: 'options',
-				options: [
-					{
-						name: 'From List',
-						value: 'list',
-						description: 'Select from available enrichments',
-					},
-					{
-						name: 'By ID',
-						value: 'id',
-						description: 'Enter enrichment ID manually',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run', 'bulkRun'],
-					},
-				},
-				default: 'list',
-				description: 'How to select the enrichment',
-			},
-
-		// Enrichment: Run/BulkRun - Enrichment Selection from List
+		// Enrichment: Run/BulkRun - Enrichment Selection
 		{
 			displayName: 'Enrichment',
 			name: 'enrichmentId',
 			type: 'options',
 			typeOptions: {
 				loadOptionsMethod: 'getEnrichments',
-				searchable: true,  // Enable client-side search
+				searchable: true,
 			},
 			displayOptions: {
 				show: {
 					resource: ['enrichment'],
 					operation: ['run', 'bulkRun'],
-					enrichmentSelectionMode: ['list'],
 				},
 			},
 			default: '',
 			required: true,
-			description: 'Select the enrichment to use. If this dropdown is empty, switch to "By ID" mode above.',
+			description: 'Select the enrichment to use. Switch to Expression mode to pass a dynamic enrichment ID.',
 		},
-
-		// Enrichment: Run/BulkRun - Enrichment ID Manual Entry
-		{
-			displayName: 'Enrichment ID',
-			name: 'enrichmentId',
-			type: 'number',
-			displayOptions: {
-				show: {
-					resource: ['enrichment'],
-					operation: ['run', 'bulkRun'],
-					enrichmentSelectionMode: ['id'],
-				},
-			},
-			default: 0,
-			required: true,
-			description: 'Enter the enrichment ID (e.g., 1220 for Email Verifier)',
-		},
-
-			// Enrichment: Run - Parameter Input Mode
-			{
-				displayName: 'Parameter Input Mode',
-				name: 'parameterMode',
-				type: 'options',
-				options: [
-					{
-						name: 'Guided Fields',
-						value: 'fields',
-						description: 'Fill in parameters using individual fields',
-					},
-					{
-						name: 'Raw JSON',
-						value: 'json',
-						description: 'Enter parameters as JSON object',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-					},
-				},
-				default: 'fields',
-				description: 'Choose how to input enrichment parameters',
-			},
 
 			// Enrichment: Run - Parameters as Resource Mapper (Guided Fields)
 			{
@@ -322,55 +244,16 @@ export class Databar implements INodeType {
 						valuesLabel: 'Parameters',
 						addAllFields: true,
 						multiKeyMatch: false,
+						supportAutoMap: false,
 					},
 				},
 				displayOptions: {
 					show: {
 						resource: ['enrichment'],
 						operation: ['run'],
-						parameterMode: ['fields'],
 					},
 				},
 				description: 'Fill in the enrichment parameters',
-			},
-
-			// Enrichment: Run - Template Helper for JSON Mode (Hidden field that loads template)
-			{
-				displayName: 'Template',
-				name: 'jsonTemplateHelper',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getEnrichmentTemplate',
-					loadOptionsDependsOn: ['enrichmentId'],
-				},
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-						parameterMode: ['json'],
-					},
-				},
-				default: '{}',
-				description: 'Click to see the parameter template, then copy it into the field below',
-			},
-
-			// Enrichment: Run - Parameters as JSON (Raw JSON)
-			{
-				displayName: 'Parameters (JSON)',
-				name: 'paramsJson',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['enrichment'],
-						operation: ['run'],
-						parameterMode: ['json'],
-					},
-				},
-				default: '={{ $parameter["jsonTemplateHelper"] }}',
-				placeholder: '{"email": "test@example.com"}',
-				hint: '✨ Auto-filled from template above! Replace <text> placeholders with your actual data.',
-				description: 'Parameters automatically populated from template. Replace placeholders with real values.',
-				required: true,
 			},
 
 			// Enrichment: Bulk Run - Parameters JSON
@@ -441,115 +324,194 @@ export class Databar implements INodeType {
 			// ====================================
 			//        TABLE OPERATIONS
 			// ====================================
-			// Table operations temporarily hidden - can be re-enabled later
-			// {
-			// 	displayName: 'Operation',
-			// 	name: 'operation',
-			// 	type: 'options',
-			// 	noDataExpression: true,
-			// 	displayOptions: {
-			// 		show: {
-			// 			resource: ['table'],
-			// 		},
-			// 	},
-			// 	options: [
-			// 		{
-			// 			name: 'Create',
-			// 			value: 'create',
-			// 			description: 'Create a new table',
-			// 			action: 'Create table',
-			// 		},
-			// 		{
-			// 			name: 'List',
-			// 			value: 'list',
-			// 			description: 'Get all workspace tables',
-			// 			action: 'List tables',
-			// 		},
-			// 		{
-			// 			name: 'Get Rows',
-			// 			value: 'getRows',
-			// 			description: 'Get table rows',
-			// 			action: 'Get table rows',
-			// 		},
-			// 		{
-			// 			name: 'Get Columns',
-			// 			value: 'getColumns',
-			// 			description: 'Get table columns',
-			// 			action: 'Get table columns',
-			// 		},
-			// 		{
-			// 			name: 'Run Enrichment',
-			// 			value: 'runEnrichment',
-			// 			description: 'Run table enrichment',
-			// 			action: 'Run table enrichment',
-			// 		},
-			// 	],
-			// 	default: 'list',
-			// },
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['table'],
+					},
+				},
+				options: [
+					{
+						name: 'Insert Rows',
+						value: 'insertRows',
+						description: 'Insert one or more rows into a table',
+						action: 'Insert rows into table',
+					},
+					{
+						name: 'Upsert Rows',
+						value: 'upsertRows',
+						description: 'Update rows by key or create new ones if no match is found',
+						action: 'Upsert rows in table',
+					},
+				],
+				default: 'insertRows',
+			},
 
-			// Table: Get Rows/Columns/Run - Table Selection
-			// {
-			// 	displayName: 'Table',
-			// 	name: 'tableUuid',
-			// 	type: 'options',
-			// 	typeOptions: {
-			// 		loadOptionsMethod: 'getTables',
-			// 		searchable: true,
-			// 	},
-			// 	displayOptions: {
-			// 		show: {
-			// 			resource: ['table'],
-			// 			operation: ['getRows', 'getColumns', 'runEnrichment'],
-			// 		},
-			// 	},
-			// 	default: '',
-			// 	required: true,
-			// 	description: 'Select the table to use',
-			// },
+			// Table: Selection from List
+			{
+				displayName: 'Table',
+				name: 'tableId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getTables',
+					searchable: true,
+				},
+				displayOptions: {
+					show: {
+						resource: ['table'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Select the table to use. Switch to Expression mode to pass a dynamic table ID.',
+			},
 
-			// Table: Get Rows - Pagination
-			// {
-			// 	displayName: 'Per Page',
-			// 	name: 'perPage',
-			// 	type: 'number',
-			// 	displayOptions: {
-			// 		show: {
-			// 			resource: ['table'],
-			// 			operation: ['getRows'],
-			// 		},
-			// 	},
-			// 	default: 1000,
-			// 	description: 'Number of items to return per page',
-			// },
-			// {
-			// 	displayName: 'Page',
-			// 	name: 'page',
-			// 	type: 'number',
-			// 	displayOptions: {
-			// 		show: {
-			// 			resource: ['table'],
-			// 			operation: ['getRows'],
-			// 		},
-			// 	},
-			// 	default: 1,
-			// 	description: 'Page number to retrieve',
-			// },
+			// Table: Insert Rows - Fields (Resource Mapper)
+			{
+				displayName: 'Fields',
+				name: 'rowFields',
+				type: 'resourceMapper',
+				noDataExpression: true,
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
+				typeOptions: {
+					loadOptionsDependsOn: ['tableId'],
+					resourceMapper: {
+						resourceMapperMethod: 'getTableFields',
+						mode: 'add',
+						valuesLabel: 'Column',
+						addAllFields: true,
+						multiKeyMatch: false,
+						supportAutoMap: false,
+					},
+				},
+				displayOptions: {
+					show: {
+						resource: ['table'],
+						operation: ['insertRows'],
+					},
+				},
+				description: 'Column values for the row to insert. Each input item creates one row.',
+			},
 
-			// Table: Run Enrichment - Enrichment ID
-			// {
-			// 	displayName: 'Enrichment ID',
-			// 	name: 'tableEnrichmentId',
-			// 	type: 'string',
-			// 	displayOptions: {
-			// 		show: {
-			// 			resource: ['table'],
-			// 			operation: ['runEnrichment'],
-			// 		},
-			// 	},
-			// 	default: '',
-			// 	required: true,
-			// 	description: 'The ID of the enrichment to run',
-			// },
+			// Table: Insert Rows - Additional Options
+			{
+				displayName: 'Options',
+				name: 'insertOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['table'],
+						operation: ['insertRows'],
+					},
+				},
+				options: [
+					{
+						displayName: 'Allow New Columns',
+						name: 'allowNewColumns',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to automatically create columns that don\'t exist yet (created as text columns)',
+					},
+					{
+						displayName: 'Dedupe',
+						name: 'dedupeEnabled',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to skip rows that match existing rows on the specified keys',
+					},
+					{
+						displayName: 'Dedupe Keys',
+						name: 'dedupeKeys',
+						type: 'string',
+						default: '',
+						placeholder: 'domain, email',
+						description: 'Comma-separated column names used for duplicate detection',
+						displayOptions: {
+							show: {
+								dedupeEnabled: [true],
+							},
+						},
+					},
+				],
+			},
+
+			// Table: Upsert Rows - Key Column
+			{
+				displayName: 'Column to Match On',
+				name: 'upsertKeyColumn',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getTableColumns',
+					loadOptionsDependsOn: ['tableId'],
+				},
+				displayOptions: {
+					show: {
+						resource: ['table'],
+						operation: ['upsertRows'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'The column used to find an existing row. If a match is found, that row is updated; otherwise a new row is created.',
+			},
+
+			// Table: Upsert Rows - Value to Search
+			{
+				displayName: 'Value to Search',
+				name: 'upsertKeyValue',
+				type: 'string',
+				displayOptions: {
+					show: {
+						resource: ['table'],
+						operation: ['upsertRows'],
+					},
+				},
+				default: '',
+				required: true,
+				placeholder: 'e.g. openai.com',
+				description: 'The value to look for in the selected column. Databar will search for a row where the column matches this value exactly. If found, that row\'s fields are updated; if not, a new row is inserted with this value and the fields you provide.',
+			},
+
+			// Table: Upsert Rows - Fields (Resource Mapper)
+			{
+				displayName: 'Fields',
+				name: 'upsertFields',
+				type: 'resourceMapper',
+				noDataExpression: true,
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
+				typeOptions: {
+					loadOptionsDependsOn: ['tableId'],
+					resourceMapper: {
+						resourceMapperMethod: 'getTableFields',
+						mode: 'add',
+						valuesLabel: 'Column',
+						addAllFields: true,
+						multiKeyMatch: false,
+						supportAutoMap: false,
+					},
+				},
+				displayOptions: {
+					show: {
+						resource: ['table'],
+						operation: ['upsertRows'],
+					},
+				},
+				description: 'Column values to set on the matched or newly created row',
+			},
 
 			// ====================================
 			//      WATERFALL OPERATIONS
@@ -564,37 +526,18 @@ export class Databar implements INodeType {
 						resource: ['waterfall'],
 					},
 				},
-				options: [
-					{
-						name: 'List',
-						value: 'list',
-						description: 'Get all available waterfalls',
-						action: 'List waterfalls',
-					},
-					{
-						name: 'Get',
-						value: 'get',
-						description: 'Get details of a specific waterfall',
-						action: 'Get waterfall',
-					},
-					{
-						name: 'Run',
-						value: 'run',
-						description: 'Run a waterfall task',
-						action: 'Run waterfall',
-					},
-					// Bulk Run temporarily removed - can be re-added later if needed
-					// {
-					// 	name: 'Bulk Run',
-					// 	value: 'bulkRun',
-					// 	description: 'Run waterfall on multiple records',
-					// 	action: 'Bulk run waterfall',
-					// },
-				],
-				default: 'list',
+			options: [
+				{
+					name: 'Run',
+					value: 'run',
+					description: 'Run a waterfall task',
+					action: 'Run waterfall',
+				},
+			],
+			default: 'run',
 			},
 
-			// Waterfall: Get/Run - Waterfall Selection
+			// Waterfall: Run - Waterfall Selection
 			{
 				displayName: 'Waterfall',
 				name: 'waterfallIdentifier',
@@ -603,42 +546,15 @@ export class Databar implements INodeType {
 					loadOptionsMethod: 'getWaterfalls',
 					searchable: true,
 				},
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['get', 'run'],
-					},
+			displayOptions: {
+				show: {
+					resource: ['waterfall'],
+					operation: ['run'],
 				},
+			},
 				default: '',
 				required: true,
 				description: 'Select the waterfall to use',
-			},
-
-			// Waterfall: Run - Parameter Input Mode
-			{
-				displayName: 'Parameter Input Mode',
-				name: 'waterfallParameterMode',
-				type: 'options',
-				options: [
-					{
-						name: 'Guided Fields',
-						value: 'fields',
-						description: 'Fill in parameters using individual fields',
-					},
-					{
-						name: 'Raw JSON',
-						value: 'json',
-						description: 'Enter parameters as JSON object',
-					},
-				],
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['run'],
-					},
-				},
-				default: 'fields',
-				description: 'Choose how to input waterfall parameters',
 			},
 
 			// Waterfall: Run - Parameters as Resource Mapper (Guided Fields)
@@ -660,55 +576,16 @@ export class Databar implements INodeType {
 						valuesLabel: 'Parameters',
 						addAllFields: true,
 						multiKeyMatch: false,
+						supportAutoMap: false,
 					},
 				},
 				displayOptions: {
 					show: {
 						resource: ['waterfall'],
 						operation: ['run'],
-						waterfallParameterMode: ['fields'],
 					},
 				},
 				description: 'Fill in the waterfall parameters',
-			},
-
-			// Waterfall: Run - Template Helper for JSON Mode
-			{
-				displayName: 'Template',
-				name: 'waterfallJsonTemplateHelper',
-				type: 'options',
-				typeOptions: {
-					loadOptionsMethod: 'getWaterfallTemplate',
-					loadOptionsDependsOn: ['waterfallIdentifier'],
-				},
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['run'],
-						waterfallParameterMode: ['json'],
-					},
-				},
-				default: '{}',
-				description: 'Click to see the parameter template, then copy it into the field below',
-			},
-
-			// Waterfall: Run - Parameters as JSON (Raw JSON)
-			{
-				displayName: 'Parameters (JSON)',
-				name: 'params',
-				type: 'json',
-				displayOptions: {
-					show: {
-						resource: ['waterfall'],
-						operation: ['run'],
-						waterfallParameterMode: ['json'],
-					},
-				},
-				default: '={{ $parameter["waterfallJsonTemplateHelper"] }}',
-				placeholder: '{"first_name": "John", "last_name": "Doe", "company": "example.com"}',
-				hint: '✨ Auto-filled from template above! Replace <text> placeholders with your actual data.',
-				description: 'Parameters automatically populated from template. Replace placeholders with real values.',
-				required: true,
 			},
 
 			// Waterfall: Run - Enrichments (Multi-select)
@@ -727,6 +604,7 @@ export class Databar implements INodeType {
 					},
 				},
 				default: [],
+				required: true,
 				description: 'Select which data providers to use in the waterfall. The waterfall will try each provider in order until a successful result is returned.',
 			},
 
@@ -828,9 +706,9 @@ export class Databar implements INodeType {
 					// Return error as an option so user knows what went wrong
 					const errorMessage = error instanceof Error ? error.message : 'Failed to load enrichments';
 					returnData.push({
-						name: `⚠️ Error: ${errorMessage}`,
+						name: `Error: ${errorMessage}`,
 						value: '',
-						description: 'Switch to "By ID" mode to enter enrichment ID manually',
+						description: 'Could not load enrichments. Check your API key and try again.',
 					});
 				}
 				return returnData;
@@ -907,7 +785,7 @@ export class Databar implements INodeType {
 
 					if (availableEnrichments.length === 0) {
 						return [{
-							name: '⚠️ No Data Providers Available',
+							name: 'No Data Providers Available',
 							value: '',
 							description: 'This waterfall has no available data providers configured.',
 						}];
@@ -932,7 +810,7 @@ export class Databar implements INodeType {
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
-						name: '⚠️ Error Loading Data Providers',
+						name: 'Error Loading Data Providers',
 						value: '',
 						description: `Could not fetch waterfall data providers. Error: ${errorMessage}`,
 					}];
@@ -940,37 +818,92 @@ export class Databar implements INodeType {
 				return returnData;
 			},
 
-			// Load tables - temporarily hidden, can be re-enabled later
-			// async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-			// 	const returnData: INodePropertyOptions[] = [];
-			// 	try {
-			// 		const tables = await this.helpers.httpRequestWithAuthentication.call(
-			// 			this,
-			// 			'databarApi',
-			// 			{
-			// 				method: 'GET',
-			// 				url: 'https://api.databar.ai/v1/table/',
-			// 			},
-			// 		);
+			async getTables(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					const tables = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: 'https://api.databar.ai/v1/table/',
+						},
+					);
 
-			// 		if (Array.isArray(tables)) {
-			// 			for (const table of tables) {
-			// 				const tableData = table as IDataObject;
-			// 				returnData.push({
-			// 					name: tableData.name as string,
-			// 					value: tableData.identifier as string,
-			// 					description: `Created: ${tableData.created_at}`,
-			// 				});
-			// 			}
-			// 		}
+					if (Array.isArray(tables)) {
+						for (const table of tables) {
+							const tableData = table as IDataObject;
+							returnData.push({
+								name: tableData.name as string,
+								value: tableData.identifier as string,
+								description: `Created: ${tableData.created_at as string}`,
+							});
+						}
+					}
 
-			// 		// Sort by name
-			// 		returnData.sort((a, b) => a.name.localeCompare(b.name));
-			// 	} catch (error) {
-			// 		// Silently fail
-			// 	}
-			// 	return returnData;
-			// },
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : 'Failed to load tables';
+					returnData.push({
+						name: `Error: ${errorMessage}`,
+						value: '',
+						description: 'Could not load tables. Check your API key and try again.',
+					});
+				}
+				return returnData;
+			},
+
+			async getTableColumns(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					let tableId: string | undefined;
+					try {
+						const tableIdRaw = this.getCurrentNodeParameter('tableId');
+						if (tableIdRaw) {
+							tableId = tableIdRaw as string;
+						}
+					} catch (error) {
+						// Parameter might not be set yet
+					}
+
+					if (!tableId) {
+						return [{
+							name: 'Select a Table First',
+							value: '',
+						}];
+					}
+
+					const columns = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/table/${tableId}/columns`,
+						},
+					);
+
+					if (Array.isArray(columns)) {
+						for (const column of columns) {
+							const colData = column as IDataObject;
+							if (colData.data_processor_id) continue;
+							returnData.push({
+								name: colData.name as string,
+								value: colData.internal_name as string,
+								description: `Type: ${colData.type_of_value as string || 'unknown'}`,
+							});
+						}
+					}
+
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : 'Failed to load columns';
+					returnData.push({
+						name: `Error: ${errorMessage}`,
+						value: '',
+					});
+				}
+				return returnData;
+			},
 
 			/**
 			 * Get parameter template for selected enrichment
@@ -1045,17 +978,17 @@ export class Databar implements INodeType {
 					const paramList = paramDescriptions.join('\n');
 
 					return [{
-						name: '📋 Template Loaded',
-						value: singleLineJson,  // Valid JSON string without newlines
-						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template:\n${templateJson}`,
+						name: 'Template Loaded',
+						value: singleLineJson,
+						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
 					}];
 
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
-						name: '⚠️ Error Loading Template',
+						name: 'Error Loading Template',
 						value: '{}',
-						description: `Could not fetch enrichment parameters. Error: ${errorMessage}\n\nTry:\n• Verify the enrichment ID is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
+						description: `Could not fetch enrichment parameters: ${errorMessage}`,
 					}];
 				}
 			},
@@ -1133,23 +1066,95 @@ export class Databar implements INodeType {
 					const paramList = paramDescriptions.join('\n');
 
 					return [{
-						name: '📋 Template Loaded',
-						value: singleLineJson,  // Valid JSON string without newlines
-						description: `Required Parameters:\n${paramList}\n\n📝 JSON Template:\n${templateJson}`,
+						name: 'Template Loaded',
+						value: singleLineJson,
+						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
 					}];
 
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 					return [{
-						name: '⚠️ Error Loading Template',
+						name: 'Error Loading Template',
 						value: '{}',
-						description: `Could not fetch waterfall parameters. Error: ${errorMessage}\n\nTry:\n• Verify the waterfall identifier is valid\n• Check your API key has access\n• Use the "Get" operation to see parameters manually`,
+						description: `Could not fetch waterfall parameters: ${errorMessage}`,
 					}];
 				}
 			},
 		},
 
 		resourceMapping: {
+			/**
+			 * Get table column definitions for the resource mapper.
+			 * Fetches columns from the API and maps them to ResourceMapperField entries
+			 * so n8n renders a per-column form UI.
+			 */
+			async getTableFields(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
+				try {
+					let tableId: string | undefined;
+					try {
+						const tableIdRaw = this.getCurrentNodeParameter('tableId');
+						if (tableIdRaw) {
+							tableId = tableIdRaw as string;
+						}
+					} catch (_error) {
+						// Parameter might not be set yet
+					}
+
+					if (!tableId) {
+						return { fields: [] };
+					}
+
+					const columns = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/table/${tableId}/columns`,
+						},
+					);
+
+					if (!Array.isArray(columns) || columns.length === 0) {
+						return { fields: [] };
+					}
+
+					const typeMap: Record<string, 'string' | 'number' | 'boolean'> = {
+						text: 'string',
+						longtext: 'string',
+						number: 'number',
+						integer: 'number',
+						float: 'number',
+						boolean: 'boolean',
+						bool: 'boolean',
+					};
+
+					const userColumns = columns.filter((column) => {
+						const col = column as IDataObject;
+						return !col.data_processor_id;
+					});
+
+					const fields: ResourceMapperField[] = userColumns.map((column) => {
+						const col = column as IDataObject;
+						const internalName = col.internal_name as string;
+						const displayName = col.name as string;
+						const colType = (col.type_of_value as string) || 'text';
+
+						return {
+							id: internalName,
+							displayName: `${displayName} (${colType})`,
+							required: false,
+							defaultMatch: false,
+							display: true,
+							type: typeMap[colType] || 'string',
+							canBeUsedToMatch: true,
+						};
+					});
+
+					return { fields };
+				} catch (_error) {
+					return { fields: [] };
+				}
+			},
+
 			/**
 			 * Get enrichment fields for resource mapper
 			 * 
@@ -1405,29 +1410,10 @@ export class Databar implements INodeType {
 							);
 						}
 						
-						const parameterMode = this.getNodeParameter('parameterMode', i, 'fields') as string;
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Get parameters based on input mode
-						let params: IDataObject;
-						if (parameterMode === 'fields') {
-							// Resource mapper mode - get structured fields
-							const paramsFields = this.getNodeParameter('paramsFields', i) as IDataObject;
-							// Resource mapper returns an object with 'value' containing the actual data
-							params = (paramsFields.value as IDataObject) || {};
-						} else {
-							// Raw JSON mode - parse JSON string
-							const paramsJson = this.getNodeParameter('paramsJson', i) as string;
-							try {
-								params = JSON.parse(paramsJson);
-							} catch (error) {
-								throw new NodeOperationError(
-									this.getNode(),
-									'Parameters must be valid JSON object',
-									{ itemIndex: i },
-								);
-							}
-						}
+						const paramsFields = this.getNodeParameter('paramsFields', i) as IDataObject;
+						const params: IDataObject = (paramsFields.value as IDataObject) || {};
 
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,
@@ -1519,71 +1505,107 @@ export class Databar implements INodeType {
 				}
 
 				// ====================================
-				//      WATERFALL OPERATIONS
+				//        TABLE OPERATIONS
 				// ====================================
-				else if (resource === 'waterfall') {
-					if (operation === 'list') {
-						const response = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'databarApi',
-							{
-								method: 'GET',
-								url: 'https://api.databar.ai/v1/waterfalls/',
-							},
+				else if (resource === 'table') {
+					const tableId = this.getNodeParameter('tableId', i) as string;
+
+					if (!tableId) {
+						throw new NodeOperationError(
+							this.getNode(),
+							'Please provide a valid table ID',
+							{ itemIndex: i },
 						);
-						if (Array.isArray(response)) {
-							for (const item of response as IDataObject[]) {
-								returnData.push({
-									json: item,
-									pairedItem: { item: i },
-								});
-							}
-						} else {
-							returnData.push({
-								json: response as IDataObject,
-								pairedItem: { item: i },
-							});
+					}
+
+					if (operation === 'insertRows') {
+						const rowFieldsMapper = this.getNodeParameter('rowFields', i) as IDataObject;
+						const insertOptions = this.getNodeParameter('insertOptions', i, {}) as IDataObject;
+
+						const fields: IDataObject = (rowFieldsMapper.value as IDataObject) || {};
+
+						const row: IDataObject = { fields };
+
+						const options: IDataObject = {};
+						if (insertOptions.allowNewColumns !== undefined) {
+							options.allow_new_columns = insertOptions.allowNewColumns;
 						}
-					} else if (operation === 'get') {
-						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
+						if (insertOptions.dedupeEnabled) {
+							const keysStr = (insertOptions.dedupeKeys as string) || '';
+							options.dedupe = {
+								enabled: true,
+								keys: keysStr.split(',').map((k: string) => k.trim()).filter((k: string) => k),
+							};
+						}
+
+						const body: IDataObject = { rows: [row] };
+						if (Object.keys(options).length > 0) {
+							body.options = options;
+						}
+
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,
 							'databarApi',
 							{
-								method: 'GET',
-								url: `https://api.databar.ai/v1/waterfalls/${waterfallIdentifier}`,
+								method: 'POST',
+								url: `https://api.databar.ai/v1/table/${tableId}/rows`,
+								body,
 							},
 						);
+
 						returnData.push({
 							json: response as IDataObject,
 							pairedItem: { item: i },
 						});
-					} else if (operation === 'run') {
+
+					} else if (operation === 'upsertRows') {
+						const keyColumn = this.getNodeParameter('upsertKeyColumn', i) as string;
+						const keyValue = this.getNodeParameter('upsertKeyValue', i) as string;
+						const upsertFieldsMapper = this.getNodeParameter('upsertFields', i) as IDataObject;
+
+						if (!keyColumn) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please provide a key column name',
+								{ itemIndex: i },
+							);
+						}
+
+						const fields: IDataObject = (upsertFieldsMapper.value as IDataObject) || {};
+
+						const row: IDataObject = {
+							key: { [keyColumn]: keyValue },
+							fields,
+						};
+
+						const response = await this.helpers.httpRequestWithAuthentication.call(
+							this,
+							'databarApi',
+							{
+								method: 'POST',
+								url: `https://api.databar.ai/v1/table/${tableId}/rows/upsert`,
+								body: { rows: [row] },
+							},
+						);
+
+						returnData.push({
+							json: response as IDataObject,
+							pairedItem: { item: i },
+						});
+					}
+				}
+
+				// ====================================
+				//      WATERFALL OPERATIONS
+				// ====================================
+			else if (resource === 'waterfall') {
+				if (operation === 'run') {
 						const waterfallIdentifier = this.getNodeParameter('waterfallIdentifier', i) as string;
-						const parameterMode = this.getNodeParameter('waterfallParameterMode', i, 'fields') as string;
 						const enrichmentsRaw = this.getNodeParameter('enrichments', i, []) as (string | number)[];
 						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
 						
-						// Get parameters based on input mode
-						let params: IDataObject;
-						if (parameterMode === 'fields') {
-							// Resource mapper mode - get structured fields
-							const paramsFields = this.getNodeParameter('waterfallParamsFields', i) as IDataObject;
-							// Resource mapper returns an object with 'value' containing the actual data
-							params = (paramsFields.value as IDataObject) || {};
-						} else {
-							// Raw JSON mode - parse JSON string
-							const paramsJson = this.getNodeParameter('params', i) as string;
-							try {
-								params = JSON.parse(paramsJson);
-							} catch (error) {
-								throw new NodeOperationError(
-									this.getNode(),
-									'Parameters must be valid JSON object',
-									{ itemIndex: i },
-								);
-							}
-						}
+						const paramsFields = this.getNodeParameter('waterfallParamsFields', i) as IDataObject;
+						const params: IDataObject = (paramsFields.value as IDataObject) || {};
 
 						// Convert enrichment IDs to numbers (multiOptions returns array of selected values)
 						const enrichments = enrichmentsRaw.map((id) => {
