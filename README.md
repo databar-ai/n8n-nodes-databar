@@ -142,19 +142,27 @@ If enrichment or waterfall tasks timeout:
 
 ## Resources
 
+- [n8n Integration Guide](https://docs.databar.ai/product-guide/n8n-integration) - Setup and usage for this node
+- [Databar Documentation](https://docs.databar.ai) - Product and API docs
 - [Databar.ai](https://databar.ai) — Main website
-- [Databar API Documentation](https://databar.ai/docs/api) — API reference
 - [n8n Documentation](https://docs.n8n.io/) — n8n platform docs
 - [GitHub Repository](https://github.com/databar-ai/n8n-nodes-databar) — Source code
 
 ## Support
 
-**For Databar API issues:**
+**For Databar issues:**
 - Email: info@databar.ai
-- Visit: [Databar.ai](https://databar.ai)
+- Docs: [docs.databar.ai](https://docs.databar.ai)
+- Website: [databar.ai](https://databar.ai)
 
 **For node issues:**
 - GitHub Issues: [n8n-nodes-databar/issues](https://github.com/databar-ai/n8n-nodes-databar/issues)
+
+## Connect
+
+- [LinkedIn](https://www.linkedin.com/company/databar-nocode)
+- [X (Twitter)](https://x.com/databar_ai)
+- [Website](https://databar.ai)
 
 ## Version History
 

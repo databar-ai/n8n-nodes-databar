@@ -180,7 +180,7 @@ export class Databar implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Databar.ai API for data enrichment and table management',
+		description: 'Enrich data, run waterfalls and flows, and manage tables with Databar.ai',
 		defaults: {
 			name: 'Databar',
 		},
