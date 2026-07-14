@@ -111,6 +111,67 @@ async function pollTaskStatus(
 	}
 }
 
+/**
+ * Resolve the selectable options for a choice/multiple-choice parameter.
+ *
+ * The Databar API describes a choice parameter's options in one of two ways
+ * (see GET /v1/enrichments/{id} -> params[].choices):
+ *  - mode "inline": the full option list is embedded in the response (small lists,
+ *    <= 50 options). No extra request needed.
+ *  - mode "remote": the list is large or backed by a dynamic selector, so it must be
+ *    fetched from the dedicated, searchable/paginated endpoint
+ *    GET /v1/enrichments/{id}/params/{slug}/choices.
+ *
+ * n8n's resource mapper option fields take a *static* array, so for remote lists we
+ * eagerly fetch the first page (capped at 500 by the API) and inline the results.
+ * Each option's `value` is the choice id — that is exactly what the run endpoint
+ * validates against (RequestParam selector.check_id_in_choice).
+ *
+ * @returns Array of { name, value } options, or an empty array if none resolve.
+ */
+async function loadChoiceOptions(
+	context: ILoadOptionsFunctions,
+	enrichmentId: number,
+	paramSlug: string,
+	choices: IDataObject | undefined,
+): Promise<INodePropertyOptions[]> {
+	if (!choices) {
+		return [];
+	}
+
+	if (choices.mode === 'inline' && Array.isArray(choices.items)) {
+		return (choices.items as IDataObject[]).map((item) => ({
+			name: String(item.name),
+			value: String(item.id),
+		}));
+	}
+
+	if (choices.mode === 'remote') {
+		try {
+			const response = await context.helpers.httpRequestWithAuthentication.call(
+				context,
+				'databarApi',
+				{
+					method: 'GET',
+					url: `https://api.databar.ai/v1/enrichments/${enrichmentId}/params/${encodeURIComponent(paramSlug)}/choices`,
+					qs: { limit: 500 },
+				},
+			);
+			const data = response as IDataObject;
+			const items = (data.items as IDataObject[]) || [];
+			return items.map((item) => ({
+				name: String(item.name),
+				value: String(item.id),
+			}));
+		} catch (_error) {
+			// Fall back to a free-text field if options can't be fetched
+			return [];
+		}
+	}
+
+	return [];
+}
+
 export class Databar implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Databar',
@@ -157,6 +218,10 @@ export class Databar implements INodeType {
 				{
 					name: 'Waterfall',
 					value: 'waterfall',
+				},
+				{
+					name: 'Flow',
+					value: 'flow',
 				},
 				{
 					name: 'Other',
@@ -435,50 +500,6 @@ export class Databar implements INodeType {
 				description: 'Column values for the row to insert. Each input item creates one row.',
 			},
 
-			// Table: Insert Rows - Additional Options
-			{
-				displayName: 'Options',
-				name: 'insertOptions',
-				type: 'collection',
-				placeholder: 'Add Option',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['table'],
-						operation: ['insertRows'],
-					},
-				},
-				options: [
-					{
-						displayName: 'Allow New Columns',
-						name: 'allowNewColumns',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to automatically create columns that don\'t exist yet (created as text columns)',
-					},
-					{
-						displayName: 'Dedupe',
-						name: 'dedupeEnabled',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to skip rows that match existing rows on the specified keys',
-					},
-					{
-						displayName: 'Dedupe Keys',
-						name: 'dedupeKeys',
-						type: 'string',
-						default: '',
-						placeholder: 'domain, email',
-						description: 'Comma-separated column names used for duplicate detection',
-						displayOptions: {
-							show: {
-								dedupeEnabled: [true],
-							},
-						},
-					},
-				],
-			},
-
 			// Table: Upsert Rows - Key Column
 			{
 				displayName: 'Column to Match On',
@@ -689,6 +710,128 @@ export class Databar implements INodeType {
 				],
 			},
 
+			// ====================================
+			//         FLOW OPERATIONS
+			// ====================================
+			{
+				displayName: 'Operation',
+				name: 'operation',
+				type: 'options',
+				noDataExpression: true,
+				displayOptions: {
+					show: {
+						resource: ['flow'],
+					},
+				},
+				options: [
+					{
+						name: 'Run',
+						value: 'run',
+						description: 'Run a flow with the given inputs',
+						action: 'Run flow',
+					},
+				],
+				default: 'run',
+			},
+
+			// Flow: Run - Flow Selection
+			{
+				displayName: 'Flow',
+				name: 'flowId',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getFlows',
+					searchable: true,
+				},
+				displayOptions: {
+					show: {
+						resource: ['flow'],
+						operation: ['run'],
+					},
+				},
+				default: '',
+				required: true,
+				description: 'Select the flow to run. Switch to Expression mode to pass a dynamic flow ID.',
+			},
+
+			// Flow: Run - Inputs as Resource Mapper (Guided Fields)
+			{
+				displayName: 'Inputs',
+				name: 'flowInputs',
+				type: 'resourceMapper',
+				noDataExpression: true,
+				default: {
+					mappingMode: 'defineBelow',
+					value: null,
+				},
+				required: true,
+				typeOptions: {
+					loadOptionsDependsOn: ['flowId'],
+					resourceMapper: {
+						resourceMapperMethod: 'getFlowFields',
+						mode: 'add',
+						valuesLabel: 'Inputs',
+						addAllFields: true,
+						multiKeyMatch: false,
+						supportAutoMap: false,
+					},
+				},
+				displayOptions: {
+					show: {
+						resource: ['flow'],
+						operation: ['run'],
+					},
+				},
+				description: 'Fill in the flow inputs',
+			},
+
+			// Flow: Run - Wait for Completion
+			{
+				displayName: 'Wait for Completion',
+				name: 'waitForCompletion',
+				type: 'boolean',
+				displayOptions: {
+					show: {
+						resource: ['flow'],
+						operation: ['run'],
+					},
+				},
+				default: true,
+				description: 'Whether to wait for the flow to complete and return results automatically',
+			},
+
+			// Flow: Additional Options
+			{
+				displayName: 'Additional Options',
+				name: 'additionalOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
+				displayOptions: {
+					show: {
+						resource: ['flow'],
+						operation: ['run'],
+						waitForCompletion: [true],
+					},
+				},
+				options: [
+					{
+						displayName: 'Poll Interval (Seconds)',
+						name: 'pollInterval',
+						type: 'number',
+						default: 3,
+						description: 'How often to check for completion (in seconds)',
+					},
+					{
+						displayName: 'Timeout (Seconds)',
+						name: 'timeout',
+						type: 'number',
+						default: 300,
+						description: 'Maximum time to wait for completion (in seconds)',
+					},
+				],
+			},
+
 		],
 	};
 
@@ -776,6 +919,42 @@ export class Databar implements INodeType {
 					returnData.sort((a, b) => a.name.localeCompare(b.name));
 				} catch (error) {
 					// Silently fail
+				}
+				return returnData;
+			},
+
+			// Load flows
+			async getFlows(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const returnData: INodePropertyOptions[] = [];
+				try {
+					const flows = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: 'https://api.databar.ai/v1/flows',
+						},
+					);
+
+					if (Array.isArray(flows)) {
+						for (const flow of flows) {
+							const flowData = flow as IDataObject;
+							returnData.push({
+								name: flowData.name as string,
+								value: flowData.id as string,
+								description: flowData.description as string,
+							});
+						}
+					}
+
+					returnData.sort((a, b) => a.name.localeCompare(b.name));
+				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : 'Failed to load flows';
+					returnData.push({
+						name: `Error: ${errorMessage}`,
+						value: '',
+						description: 'Could not load flows. Check your API key and try again.',
+					});
 				}
 				return returnData;
 			},
@@ -920,9 +1099,14 @@ export class Databar implements INodeType {
 						for (const column of columns) {
 							const colData = column as IDataObject;
 							if (colData.data_processor_id) continue;
+							// The rows API resolves columns by additional_intenal_name
+							// (the human-readable slug), NOT internal_name. Columns without
+							// one can't be targeted, so skip them.
+							const columnKey = colData.additional_intenal_name as string;
+							if (!columnKey) continue;
 							returnData.push({
 								name: colData.name as string,
-								value: colData.internal_name as string,
+								value: columnKey,
 								description: `Type: ${colData.type_of_value as string || 'unknown'}`,
 							});
 						}
@@ -1161,19 +1345,23 @@ export class Databar implements INodeType {
 						bool: 'boolean',
 					};
 
+					// Only user columns (skip enrichment-generated ones), and only those
+					// with an additional_intenal_name — that human-readable slug is the key
+					// the rows API resolves against, so a column without one can't be
+					// written to.
 					const userColumns = columns.filter((column) => {
 						const col = column as IDataObject;
-						return !col.data_processor_id;
+						return !col.data_processor_id && !!col.additional_intenal_name;
 					});
 
 					const fields: ResourceMapperField[] = userColumns.map((column) => {
 						const col = column as IDataObject;
-						const internalName = col.internal_name as string;
+						const columnKey = col.additional_intenal_name as string;
 						const displayName = col.name as string;
 						const colType = (col.type_of_value as string) || 'text';
 
 						return {
-							id: internalName,
+							id: columnKey,
 							displayName: `${displayName} (${colType})`,
 							required: false,
 							defaultMatch: false,
@@ -1235,38 +1423,107 @@ export class Databar implements INodeType {
 						};
 					}
 
-					// Build field definitions for resource mapper
-					const fields: ResourceMapperField[] = params.map((param) => {
+					// Build field definitions for resource mapper.
+					// Uses a loop (not .map) because choice params may need an async
+					// request to fetch their options from the remote choices endpoint.
+					const fields: ResourceMapperField[] = [];
+					for (const param of params) {
 						const paramName = param.name as string;
 						const isRequired = param.is_required as boolean;
 						const typeField = param.type_field as string;
-						const description = param.description as string || 'No description';
-						
-						// Map Databar types to n8n resource mapper types
+						const choices = param.choices as IDataObject | undefined;
+
+						// Note: ResourceMapperField has no `description`/`hint` property in
+						// this n8n version, so per-field help text can't be rendered. Any
+						// format guidance has to go into the field label (displayName).
+						const displayName = paramName
+							.split('_')
+							.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+							.join(' ');
+
+						// Single choice -> real dropdown.
+						// The selected option's value is the choice id, which is what the
+						// run endpoint validates against.
+						if (typeField === 'select') {
+							const options = await loadChoiceOptions(this, enrichmentId, paramName, choices);
+							if (options.length > 0) {
+								fields.push({
+									id: paramName,
+									displayName,
+									required: isRequired,
+									defaultMatch: false,
+									display: true,
+									type: 'options',
+									options,
+									canBeUsedToMatch: false,
+								});
+								continue;
+							}
+							// No options resolved (e.g. no selector configured) -> fall through
+							// to a free-text string field below.
+						}
+
+						// Multiple choice -> multi-select dropdown.
+						// 'multiOptions' isn't in n8n's ResourceMapperField type union, but the
+						// editor's getParamType() forwards the field type verbatim to the
+						// parameter input, so it renders as a real multi-select at runtime.
+						// Each selected value is a choice id; the run endpoint accepts a list.
+						if (typeField === 'mselect') {
+							const options = await loadChoiceOptions(this, enrichmentId, paramName, choices);
+							if (options.length > 0) {
+								fields.push({
+									id: paramName,
+									displayName,
+									required: isRequired,
+									defaultMatch: false,
+									display: true,
+									type: 'multiOptions' as unknown as ResourceMapperField['type'],
+									options,
+									canBeUsedToMatch: false,
+								});
+								continue;
+							}
+							// No options resolved -> fall back to comma-separated text.
+							fields.push({
+								id: paramName,
+								displayName: `${displayName} (comma-separated)`,
+								required: isRequired,
+								defaultMatch: false,
+								display: true,
+								type: 'string',
+								canBeUsedToMatch: false,
+							});
+							continue;
+						}
+
+						// Scalar types
 						let fieldType: 'string' | 'number' | 'boolean' | 'time' | 'object' | 'options' | 'array' = 'string';
 						if (typeField === 'number' || typeField === 'integer') {
 							fieldType = 'number';
-						} else if (typeField === 'boolean') {
+						} else if (typeField === 'bool' || typeField === 'boolean') {
 							fieldType = 'boolean';
 						}
 
-						return {
+						fields.push({
 							id: paramName,
-							displayName: paramName.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' '),
+							displayName,
 							required: isRequired,
 							defaultMatch: false,
 							display: true,
 							type: fieldType,
 							canBeUsedToMatch: false,
-							description: `${description} (${typeField})`,
-						};
-					});
+						});
+					}
+
+					// Show required parameters first (V8 sort is stable, so order within
+					// each group is preserved).
+					fields.sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
 
 					return {
 						fields,
 					};
 
-				} catch (error) {
+				} catch (_error) {
 					// Return empty fields on error
 					return {
 						fields: [],
@@ -1355,6 +1612,71 @@ export class Databar implements INodeType {
 					return {
 						fields: [],
 					};
+				}
+			},
+
+			/**
+			 * Get flow inputs for the resource mapper
+			 *
+			 * Fetches the selected flow and returns its declared inputs as fields.
+			 * The run endpoint accepts inputs as { input_id: value } string pairs, so
+			 * every input is rendered as a text field. Required inputs are shown first.
+			 */
+			async getFlowFields(this: ILoadOptionsFunctions): Promise<ResourceMapperFields> {
+				try {
+					let flowId: string | undefined;
+					try {
+						const flowIdRaw = this.getCurrentNodeParameter('flowId');
+						if (flowIdRaw) {
+							flowId = flowIdRaw as string;
+						}
+					} catch (_error) {
+						// Parameter might not be set yet
+					}
+
+					if (!flowId) {
+						return { fields: [] };
+					}
+
+					const flow = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'databarApi',
+						{
+							method: 'GET',
+							url: `https://api.databar.ai/v1/flows/${flowId}`,
+						},
+					);
+
+					const flowData = flow as IDataObject;
+					const inputs = (flowData.inputs as IDataObject[]) || [];
+
+					if (inputs.length === 0) {
+						return { fields: [] };
+					}
+
+					const fields: ResourceMapperField[] = inputs.map((input) => {
+						const inputId = input.id as string;
+						const isRequired = input.required as boolean;
+						return {
+							id: inputId,
+							displayName: inputId
+								.split('_')
+								.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+								.join(' '),
+							required: isRequired,
+							defaultMatch: false,
+							display: true,
+							type: 'string',
+							canBeUsedToMatch: false,
+						};
+					});
+
+					// Show required inputs first (stable sort preserves order otherwise).
+					fields.sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
+
+					return { fields };
+				} catch (_error) {
+					return { fields: [] };
 				}
 			},
 		},
@@ -1594,28 +1916,12 @@ export class Databar implements INodeType {
 
 					if (operation === 'insertRows') {
 						const rowFieldsMapper = this.getNodeParameter('rowFields', i) as IDataObject;
-						const insertOptions = this.getNodeParameter('insertOptions', i, {}) as IDataObject;
 
 						const fields: IDataObject = (rowFieldsMapper.value as IDataObject) || {};
 
 						const row: IDataObject = { fields };
 
-						const options: IDataObject = {};
-						if (insertOptions.allowNewColumns !== undefined) {
-							options.allow_new_columns = insertOptions.allowNewColumns;
-						}
-						if (insertOptions.dedupeEnabled) {
-							const keysStr = (insertOptions.dedupeKeys as string) || '';
-							options.dedupe = {
-								enabled: true,
-								keys: keysStr.split(',').map((k: string) => k.trim()).filter((k: string) => k),
-							};
-						}
-
 						const body: IDataObject = { rows: [row] };
-						if (Object.keys(options).length > 0) {
-							body.options = options;
-						}
 
 						const response = await this.helpers.httpRequestWithAuthentication.call(
 							this,
@@ -1705,6 +2011,54 @@ export class Databar implements INodeType {
 							const taskId = taskResponse.task_id as string;
 							
 							// Poll for completion
+							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
+							returnData.push({
+								json: completedTask,
+								pairedItem: { item: i },
+							});
+						} else {
+							returnData.push({
+								json: taskResponse,
+								pairedItem: { item: i },
+							});
+						}
+					}
+				}
+
+				else if (resource === 'flow') {
+					if (operation === 'run') {
+						const flowId = this.getNodeParameter('flowId', i) as string;
+						const waitForCompletion = this.getNodeParameter('waitForCompletion', i, true) as boolean;
+
+						if (!flowId) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'Please select a flow to run',
+								{ itemIndex: i },
+							);
+						}
+
+						const inputsFields = this.getNodeParameter('flowInputs', i) as IDataObject;
+						const inputs: IDataObject = (inputsFields.value as IDataObject) || {};
+
+						const response = await this.helpers.httpRequestWithAuthentication.call(
+							this,
+							'databarApi',
+							{
+								method: 'POST',
+								url: `https://api.databar.ai/v1/flows/${flowId}/run`,
+								body: { inputs },
+							},
+						);
+
+						const taskResponse = response as IDataObject;
+
+						if (waitForCompletion) {
+							const additionalOptions = this.getNodeParameter('additionalOptions', i, {}) as IDataObject;
+							const pollInterval = (additionalOptions.pollInterval as number) || 3;
+							const timeout = (additionalOptions.timeout as number) || 300;
+							const taskId = taskResponse.task_id as string;
+
 							const completedTask = await pollTaskStatus(this, taskId, pollInterval, timeout);
 							returnData.push({
 								json: completedTask,

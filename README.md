@@ -158,6 +158,14 @@ If enrichment or waterfall tasks timeout:
 
 ## Version History
 
+### 0.3.0
+- Added Flow resource with a Run operation: pick a workspace flow, fill its inputs in a guided form, and run it (with optional wait-for-completion)
+- Enrichment choice parameters now render as single-select dropdowns; multiple-choice parameters render as multi-select dropdowns
+- Enrichment parameters are now ordered with required fields first
+- Fixed Table Upsert Rows and Insert Rows: columns are now resolved by their internal name so field mapping works correctly
+- Removed the non-functional "Allow New Columns" and "Dedupe" options from Insert Rows
+- Fixed boolean enrichment parameters rendering as text
+
 ### 0.2.0
 - Added Table resource with Insert Rows and Upsert Rows operations
 - Dynamic column forms via resource mapper for table and all operations
