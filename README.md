@@ -166,6 +166,14 @@ If enrichment or waterfall tasks timeout:
 
 ## Version History
 
+### 0.3.1
+- Published via GitHub Actions with npm provenance (required for verified community nodes)
+- Fixed node metadata (codex) and surfaced errors when waterfalls fail to load
+- Cleanup: removed unused code, aligned labels with n8n guidelines, errors now use `NodeApiError`
+- Node can now be used as an AI Agent tool
+- Multiple-choice enrichment parameters are now single-select dropdowns (n8n's field mapper can't hold multi-select values)
+- The enrichment list is cached for 5 minutes, so reopening the node no longer hangs on loading
+
 ### 0.3.0
 - Added Flow resource with a Run operation: pick a workspace flow, fill its inputs in a guided form, and run it (with optional wait-for-completion)
 - Enrichment choice parameters now render as single-select dropdowns; multiple-choice parameters render as multi-select dropdowns

@@ -1,11 +1,8 @@
 {
-	"node": "n8n-nodes-base.databar",
+	"node": "n8n-nodes-databar.databar",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Data & Storage"],
-	"subcategories": {
-		"Data & Storage": ["Data Enrichment"]
-	},
 	"resources": {
 		"primaryDocumentation": [
 			{

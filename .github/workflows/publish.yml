@@ -1,0 +1,37 @@
+# Publishes to npm with a provenance attestation on every version tag push.
+# n8n requires community nodes to be published this way.
+#
+# Auth is npm Trusted Publishing (OIDC): npmjs.com -> n8n-nodes-databar ->
+# Settings -> Trusted Publisher = GitHub Actions, databar-ai/n8n-nodes-databar,
+# workflow "publish.yml". No NPM_TOKEN secret is needed.
+#
+# Release: bump "version" in package.json, merge to main, then
+#   git tag 0.3.1 && git push origin 0.3.1
+# `n8n-node release` (in CI) runs lint -> build -> `npm publish --provenance`.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for Trusted Publishing + provenance
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24 # npm >= 11.5.1 is required for Trusted Publishing
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run release

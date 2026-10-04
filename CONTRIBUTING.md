@@ -49,7 +49,7 @@ n8n-nodes-databar/
 ├── dist/                            # Compiled output (generated)
 ├── package.json                     # Package configuration
 ├── tsconfig.json                    # TypeScript configuration
-└── gulpfile.js                      # Build tasks
+└── eslint.config.mjs                # Lint config (@n8n/node-cli)
 ```
 
 ## Development Workflow
@@ -91,7 +91,7 @@ Run the linter before committing:
 npm run lint
 
 # Auto-fix issues
-npm run lintfix
+npm run lint:fix
 ```
 
 ### Building
