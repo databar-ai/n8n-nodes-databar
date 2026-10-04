@@ -1213,8 +1213,7 @@ export class Databar implements INodeType {
 					return [{
 						name: 'Template Loaded',
 						value: singleLineJson,
-						// eslint-disable-next-line n8n-nodes-base/node-param-description-excess-inner-whitespace
-						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
+						description: `Required Parameters:\n${paramList}\nJSON Template:\n${templateJson}`,
 					}];
 
 				} catch (error) {
@@ -1301,8 +1300,7 @@ export class Databar implements INodeType {
 					return [{
 						name: 'Template Loaded',
 						value: singleLineJson,
-						// eslint-disable-next-line n8n-nodes-base/node-param-description-excess-inner-whitespace
-						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
+						description: `Required Parameters:\n${paramList}\nJSON Template:\n${templateJson}`,
 					}];
 
 				} catch (error) {
