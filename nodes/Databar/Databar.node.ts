@@ -31,6 +31,8 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	IDataObject,
+	JsonObject,
+	NodeApiError,
 	NodeConnectionTypes,
 	NodeOperationError,
 	ResourceMapperFields,
@@ -163,7 +165,7 @@ async function loadChoiceOptions(
 				name: String(item.name),
 				value: String(item.id),
 			}));
-		} catch (_error) {
+		} catch {
 			// Fall back to a free-text field if options can't be fetched
 			return [];
 		}
@@ -171,6 +173,13 @@ async function loadChoiceOptions(
 
 	return [];
 }
+
+// ponytail: in-memory cache of the enrichment dropdown, keyed by API key, 5 min TTL, so
+// reopening a node doesn't re-download ~350 entries. Ceiling: per n8n process (not shared
+// across workers, cleared on restart) and a new enrichment can take up to 5 min to show up.
+// Upgrade path: n8n has no shared cache API; use a short TTL or an external store if needed.
+const ENRICHMENTS_CACHE_MS = 5 * 60 * 1000;
+const enrichmentsCache = new Map<string, { at: number; options: INodePropertyOptions[] }>();
 
 export class Databar implements INodeType {
 	description: INodeTypeDescription = {
@@ -180,7 +189,7 @@ export class Databar implements INodeType {
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Databar.ai API for data enrichment and table management',
+		description: 'Enrich data, run waterfalls and flows, and manage tables with Databar.ai',
 		defaults: {
 			name: 'Databar',
 		},
@@ -192,13 +201,7 @@ export class Databar implements INodeType {
 				required: true,
 			},
 		],
-		requestDefaults: {
-			baseURL: 'https://api.databar.ai',
-			headers: {
-				Accept: 'application/json',
-				'Content-Type': 'application/json',
-			},
-		},
+		usableAsTool: true,
 		properties: [
 			// Resource selector
 			{
@@ -211,22 +214,22 @@ export class Databar implements INodeType {
 						name: 'Enrichment',
 						value: 'enrichment',
 					},
-				{
-					name: 'Table',
-					value: 'table',
-				},
-				{
-					name: 'Waterfall',
-					value: 'waterfall',
-				},
-				{
-					name: 'Flow',
-					value: 'flow',
-				},
-				{
-					name: 'Other',
-					value: 'user',
-				},
+					{
+						name: 'Flow',
+						value: 'flow',
+					},
+					{
+						name: 'Other',
+						value: 'user',
+					},
+					{
+						name: 'Table',
+						value: 'table',
+					},
+					{
+						name: 'Waterfall',
+						value: 'waterfall',
+					},
 				],
 				default: 'enrichment',
 			},
@@ -306,7 +309,7 @@ export class Databar implements INodeType {
 
 		// Enrichment: Run/BulkRun - Enrichment Selection
 		{
-			displayName: 'Enrichment',
+			displayName: 'Enrichment Name or ID',
 			name: 'enrichmentId',
 			type: 'options',
 			typeOptions: {
@@ -321,7 +324,7 @@ export class Databar implements INodeType {
 			},
 			default: '',
 			required: true,
-			description: 'Select the enrichment to use. Switch to Expression mode to pass a dynamic enrichment ID.',
+			description: 'Select the enrichment to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		},
 
 			// Enrichment: Run - Parameters as Resource Mapper (Guided Fields)
@@ -369,7 +372,7 @@ export class Databar implements INodeType {
 				default: '[{}]',
 				placeholder: '[{"email": "john@example.com"}, {"email": "jane@example.com"}]',
 				hint: 'Array of parameter objects. Each object should have the same structure as the single enrichment run.',
-				description: 'Array of enrichment parameters for bulk processing.',
+				description: 'Array of enrichment parameters for bulk processing',
 				required: true,
 			},
 
@@ -452,7 +455,7 @@ export class Databar implements INodeType {
 
 			// Table: Selection from List
 			{
-				displayName: 'Table',
+				displayName: 'Table Name or ID',
 				name: 'tableId',
 				type: 'options',
 				typeOptions: {
@@ -466,7 +469,7 @@ export class Databar implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'Select the table to use. Switch to Expression mode to pass a dynamic table ID.',
+				description: 'Select the table to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Table: Insert Rows - Fields (Resource Mapper)
@@ -502,7 +505,7 @@ export class Databar implements INodeType {
 
 			// Table: Upsert Rows - Key Column
 			{
-				displayName: 'Column to Match On',
+				displayName: 'Column to Match On Name or ID',
 				name: 'upsertKeyColumn',
 				type: 'options',
 				typeOptions: {
@@ -517,7 +520,7 @@ export class Databar implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The column used to find an existing row. If a match is found, that row is updated; otherwise a new row is created.',
+				description: 'The column used to find an existing row. If a match is found, that row is updated; otherwise a new row is created. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Table: Upsert Rows - Value to Search
@@ -594,7 +597,7 @@ export class Databar implements INodeType {
 
 			// Waterfall: Run - Waterfall Selection
 			{
-				displayName: 'Waterfall',
+				displayName: 'Waterfall Name or ID',
 				name: 'waterfallIdentifier',
 				type: 'options',
 				typeOptions: {
@@ -609,7 +612,7 @@ export class Databar implements INodeType {
 			},
 				default: '',
 				required: true,
-				description: 'Select the waterfall to use',
+				description: 'Select the waterfall to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Waterfall: Run - Parameters as Resource Mapper (Guided Fields)
@@ -645,7 +648,7 @@ export class Databar implements INodeType {
 
 			// Waterfall: Run - Enrichments (Multi-select)
 			{
-				displayName: 'Data Providers',
+				displayName: 'Data Provider Names or IDs',
 				name: 'enrichments',
 				type: 'multiOptions',
 				typeOptions: {
@@ -660,7 +663,7 @@ export class Databar implements INodeType {
 				},
 				default: [],
 				required: true,
-				description: 'Select which data providers to use in the waterfall. The waterfall will try each provider in order until a successful result is returned.',
+				description: 'Select which data providers to use in the waterfall. The waterfall will try each provider in order until a successful result is returned. Choose from the list, or specify IDs using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Waterfall: Run - Wait for Completion
@@ -736,7 +739,7 @@ export class Databar implements INodeType {
 
 			// Flow: Run - Flow Selection
 			{
-				displayName: 'Flow',
+				displayName: 'Flow Name or ID',
 				name: 'flowId',
 				type: 'options',
 				typeOptions: {
@@ -751,7 +754,7 @@ export class Databar implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'Select the flow to run. Switch to Expression mode to pass a dynamic flow ID.',
+				description: 'Select the flow to run. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 
 			// Flow: Run - Inputs as Resource Mapper (Guided Fields)
@@ -855,6 +858,11 @@ export class Databar implements INodeType {
 			async getEnrichments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 				const returnData: INodePropertyOptions[] = [];
 				try {
+					// Reuse the list if this API key loaded it recently (see enrichmentsCache).
+					const { apiKey } = await this.getCredentials('databarApi');
+					const cached = enrichmentsCache.get(apiKey as string);
+					if (cached && Date.now() - cached.at < ENRICHMENTS_CACHE_MS) return cached.options;
+
 					const enrichments = await this.helpers.httpRequestWithAuthentication.call(
 						this,
 						'databarApi',
@@ -879,6 +887,8 @@ export class Databar implements INodeType {
 
 					// Sort by name
 					returnData.sort((a, b) => a.name.localeCompare(b.name));
+					// Only successful loads are cached (errors skip this line).
+					enrichmentsCache.set(apiKey as string, { at: Date.now(), options: returnData });
 				} catch (error) {
 					// Return error as an option so user knows what went wrong
 					const errorMessage = error instanceof Error ? error.message : 'Failed to load enrichments';
@@ -918,7 +928,12 @@ export class Databar implements INodeType {
 					// Sort by name
 					returnData.sort((a, b) => a.name.localeCompare(b.name));
 				} catch (error) {
-					// Silently fail
+					const errorMessage = error instanceof Error ? error.message : 'Failed to load waterfalls';
+					returnData.push({
+						name: `Error: ${errorMessage}`,
+						value: '',
+						description: 'Could not load waterfalls. Check your API key and try again.',
+					});
 				}
 				return returnData;
 			},
@@ -971,7 +986,7 @@ export class Databar implements INodeType {
 						if (waterfallIdRaw) {
 							waterfallIdentifier = waterfallIdRaw as string;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 					
@@ -979,7 +994,7 @@ export class Databar implements INodeType {
 						return [{
 							name: '👆 Select a Waterfall Above First',
 							value: '',
-							description: 'Choose a waterfall from the dropdown above to see available data providers.',
+							description: 'Choose a waterfall from the dropdown above to see available data providers',
 						}];
 					}
 
@@ -1000,7 +1015,7 @@ export class Databar implements INodeType {
 						return [{
 							name: 'No Data Providers Available',
 							value: '',
-							description: 'This waterfall has no available data providers configured.',
+							description: 'This waterfall has no available data providers configured',
 						}];
 					}
 
@@ -1025,7 +1040,7 @@ export class Databar implements INodeType {
 					return [{
 						name: 'Error Loading Data Providers',
 						value: '',
-						description: `Could not fetch waterfall data providers. Error: ${errorMessage}`,
+						description: `Could not fetch waterfall data providers. Error: ${errorMessage}.`,
 					}];
 				}
 				return returnData;
@@ -1075,7 +1090,7 @@ export class Databar implements INodeType {
 						if (tableIdRaw) {
 							tableId = tableIdRaw as string;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 
@@ -1139,7 +1154,7 @@ export class Databar implements INodeType {
 						if (enrichmentIdRaw) {
 							enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw as number;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 					
@@ -1147,7 +1162,7 @@ export class Databar implements INodeType {
 						return [{
 							name: '👆 Select an Enrichment Above First',
 							value: '{}',
-							description: 'Choose an enrichment from the dropdown above to see its parameter template here.',
+							description: 'Choose an enrichment from the dropdown above to see its parameter template here',
 						}];
 					}
 
@@ -1198,6 +1213,7 @@ export class Databar implements INodeType {
 					return [{
 						name: 'Template Loaded',
 						value: singleLineJson,
+						// eslint-disable-next-line n8n-nodes-base/node-param-description-excess-inner-whitespace
 						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
 					}];
 
@@ -1227,7 +1243,7 @@ export class Databar implements INodeType {
 						if (waterfallIdRaw) {
 							waterfallIdentifier = waterfallIdRaw as string;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 					
@@ -1235,7 +1251,7 @@ export class Databar implements INodeType {
 						return [{
 							name: '👆 Select a Waterfall Above First',
 							value: '{}',
-							description: 'Choose a waterfall from the dropdown above to see its parameter template here.',
+							description: 'Choose a waterfall from the dropdown above to see its parameter template here',
 						}];
 					}
 
@@ -1268,7 +1284,6 @@ export class Databar implements INodeType {
 						const paramName = param.name as string;
 						const isRequired = param.required as boolean;
 						const typeField = param.type as string;
-						const description = 'Waterfall input parameter';
 						
 						// Add to template with placeholder
 						template[paramName] = `<${typeField}>`;
@@ -1286,6 +1301,7 @@ export class Databar implements INodeType {
 					return [{
 						name: 'Template Loaded',
 						value: singleLineJson,
+						// eslint-disable-next-line n8n-nodes-base/node-param-description-excess-inner-whitespace
 						description: `Required Parameters:\n${paramList}\n\nJSON Template:\n${templateJson}`,
 					}];
 
@@ -1314,7 +1330,7 @@ export class Databar implements INodeType {
 						if (tableIdRaw) {
 							tableId = tableIdRaw as string;
 						}
-					} catch (_error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 
@@ -1372,7 +1388,7 @@ export class Databar implements INodeType {
 					});
 
 					return { fields };
-				} catch (_error) {
+				} catch {
 					return { fields: [] };
 				}
 			},
@@ -1393,7 +1409,7 @@ export class Databar implements INodeType {
 						if (enrichmentIdRaw) {
 							enrichmentId = typeof enrichmentIdRaw === 'string' ? parseInt(enrichmentIdRaw, 10) : enrichmentIdRaw as number;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 					
@@ -1463,11 +1479,10 @@ export class Databar implements INodeType {
 							// to a free-text string field below.
 						}
 
-						// Multiple choice -> multi-select dropdown.
-						// 'multiOptions' isn't in n8n's ResourceMapperField type union, but the
-						// editor's getParamType() forwards the field type verbatim to the
-						// parameter input, so it renders as a real multi-select at runtime.
-						// Each selected value is a choice id; the run endpoint accepts a list.
+						// Multiple choice -> single-select dropdown.
+						// n8n's resource mapper drops list values, so a real multi-select can't
+						// store a pick here. A single choice id is sent as a plain string, which
+						// the API treats as a one-item list.
 						if (typeField === 'mselect') {
 							const options = await loadChoiceOptions(this, enrichmentId, paramName, choices);
 							if (options.length > 0) {
@@ -1477,7 +1492,7 @@ export class Databar implements INodeType {
 									required: isRequired,
 									defaultMatch: false,
 									display: true,
-									type: 'multiOptions' as unknown as ResourceMapperField['type'],
+									type: 'options',
 									options,
 									canBeUsedToMatch: false,
 								});
@@ -1523,7 +1538,7 @@ export class Databar implements INodeType {
 						fields,
 					};
 
-				} catch (_error) {
+				} catch {
 					// Return empty fields on error
 					return {
 						fields: [],
@@ -1547,7 +1562,7 @@ export class Databar implements INodeType {
 						if (waterfallIdRaw) {
 							waterfallIdentifier = waterfallIdRaw as string;
 						}
-					} catch (error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 					
@@ -1607,7 +1622,7 @@ export class Databar implements INodeType {
 						fields,
 					};
 
-				} catch (error) {
+				} catch {
 					// Return empty fields on error
 					return {
 						fields: [],
@@ -1630,7 +1645,7 @@ export class Databar implements INodeType {
 						if (flowIdRaw) {
 							flowId = flowIdRaw as string;
 						}
-					} catch (_error) {
+					} catch {
 						// Parameter might not be set yet
 					}
 
@@ -1675,7 +1690,7 @@ export class Databar implements INodeType {
 					fields.sort((a, b) => (b.required ? 1 : 0) - (a.required ? 1 : 0));
 
 					return { fields };
-				} catch (_error) {
+				} catch {
 					return { fields: [] };
 				}
 			},
@@ -1693,7 +1708,7 @@ export class Databar implements INodeType {
 					},
 				);
 				return enrichmentDetails as IDataObject;
-			} catch (error) {
+			} catch {
 				// Silently fail
 				return null;
 			}
@@ -1859,7 +1874,7 @@ export class Databar implements INodeType {
 						let paramsArray;
 						try {
 							paramsArray = JSON.parse(bulkParams);
-						} catch (error) {
+						} catch {
 							throw new NodeOperationError(
 								this.getNode(),
 								'Bulk parameters must be valid JSON array',
@@ -2081,7 +2096,10 @@ export class Databar implements INodeType {
 					});
 					continue;
 				}
-				throw error;
+				// NodeApiError returns an existing NodeApiError as-is; keep our own NodeOperationErrors too
+				throw error instanceof NodeOperationError
+					? error
+					: new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 			}
 		}
 

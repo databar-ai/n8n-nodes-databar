@@ -22,7 +22,8 @@ import {
 export class DatabarApi implements ICredentialType {
 	name = 'databarApi';
 	displayName = 'Databar API';
-	documentationUrl = 'https://databar.ai/docs/api';
+	icon = 'file:databar.svg' as const;
+	documentationUrl = 'https://docs.databar.ai/product-guide/n8n-integration';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',

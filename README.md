@@ -142,21 +142,37 @@ If enrichment or waterfall tasks timeout:
 
 ## Resources
 
+- [n8n Integration Guide](https://docs.databar.ai/product-guide/n8n-integration) - Setup and usage for this node
+- [Databar Documentation](https://docs.databar.ai) - Product and API docs
 - [Databar.ai](https://databar.ai) — Main website
-- [Databar API Documentation](https://databar.ai/docs/api) — API reference
 - [n8n Documentation](https://docs.n8n.io/) — n8n platform docs
 - [GitHub Repository](https://github.com/databar-ai/n8n-nodes-databar) — Source code
 
 ## Support
 
-**For Databar API issues:**
+**For Databar issues:**
 - Email: info@databar.ai
-- Visit: [Databar.ai](https://databar.ai)
+- Docs: [docs.databar.ai](https://docs.databar.ai)
+- Website: [databar.ai](https://databar.ai)
 
 **For node issues:**
 - GitHub Issues: [n8n-nodes-databar/issues](https://github.com/databar-ai/n8n-nodes-databar/issues)
 
+## Connect
+
+- [LinkedIn](https://www.linkedin.com/company/databar-nocode)
+- [X (Twitter)](https://x.com/databar_ai)
+- [Website](https://databar.ai)
+
 ## Version History
+
+### 0.3.1
+- Published via GitHub Actions with npm provenance (required for verified community nodes)
+- Fixed node metadata (codex) and surfaced errors when waterfalls fail to load
+- Cleanup: removed unused code, aligned labels with n8n guidelines, errors now use `NodeApiError`
+- Node can now be used as an AI Agent tool
+- Multiple-choice enrichment parameters are now single-select dropdowns (n8n's field mapper can't hold multi-select values)
+- The enrichment list is cached for 5 minutes, so reopening the node no longer hangs on loading
 
 ### 0.3.0
 - Added Flow resource with a Run operation: pick a workspace flow, fill its inputs in a guided form, and run it (with optional wait-for-completion)
