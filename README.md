@@ -166,6 +166,9 @@ If enrichment or waterfall tasks timeout:
 
 ## Version History
 
+### 0.3.2
+- Lint fixes required by the n8n community package scanner
+
 ### 0.3.1
 - Published via GitHub Actions with npm provenance (required for verified community nodes)
 - Fixed node metadata (codex) and surfaced errors when waterfalls fail to load
